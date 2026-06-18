@@ -1,15 +1,15 @@
 import pytest
 
-from call_analytics.infra.ports.diarizer import SpeakerDiarizer, SpeakerDiarizerError
-from call_analytics.infra.ports.emotion_recognizer import (
+from call_analytics.infra.ports import (
     EmotionRecognizer,
     EmotionRecognizerError,
-)
-from call_analytics.infra.ports.report_generator import (
     ReportGenerator,
     ReportGeneratorError,
+    SpeakerDiarizer,
+    SpeakerDiarizerError,
+    Transcriber,
+    TranscriberError,
 )
-from call_analytics.infra.ports.transcriber import Transcriber, TranscriberError
 
 
 @pytest.mark.parametrize(

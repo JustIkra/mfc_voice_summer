@@ -1,6 +1,6 @@
 import pytest
 
-from call_analytics.infra.ports.recording_source import (
+from call_analytics.infra.ports import (
     CallRecordingSource,
     CallRecordingSourceError,
 )

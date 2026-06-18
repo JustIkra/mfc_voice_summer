@@ -1,7 +1,6 @@
 import pytest
 
-from call_analytics.infra.ports.artifact_store import ArtifactStore
-from call_analytics.infra.ports.job_repository import JobRepository
+from call_analytics.infra.ports import ArtifactStore, JobRepository
 
 
 @pytest.mark.parametrize("port", [JobRepository, ArtifactStore])

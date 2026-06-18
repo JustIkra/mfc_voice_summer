@@ -117,19 +117,28 @@ class CallProcessingService(CallProcessingPipeline):
         elif stage is JobStage.DIARIZE:
             audio = await self._fetch_audio(recording_id)
             stored_transcript = await self._artifacts.load_transcript(recording_id)
-            assert stored_transcript is not None
+            if stored_transcript is None:
+                raise RuntimeError(
+                    f"артефакт transcript отсутствует для {recording_id.value}"
+                )
             diarized = await self._diarizer.diarize(audio, stored_transcript)
             await self._artifacts.save_diarization(diarized)
         elif stage is JobStage.EMOTION:
             audio = await self._fetch_audio(recording_id)
             stored_diarized = await self._artifacts.load_diarization(recording_id)
-            assert stored_diarized is not None
+            if stored_diarized is None:
+                raise RuntimeError(
+                    f"артефакт diarization отсутствует для {recording_id.value}"
+                )
             emotion = await self._emotion_recognizer.recognize(audio, stored_diarized)
             await self._artifacts.save_emotion(emotion)
         elif stage is JobStage.REPORT:
             stored_diarized = await self._artifacts.load_diarization(recording_id)
             stored_emotion = await self._artifacts.load_emotion(recording_id)
-            assert stored_diarized is not None and stored_emotion is not None
+            if stored_diarized is None or stored_emotion is None:
+                raise RuntimeError(
+                    f"артефакты diarization/emotion отсутствуют для {recording_id.value}"
+                )
             report = await self._report_generator.generate(
                 stored_diarized, stored_emotion
             )

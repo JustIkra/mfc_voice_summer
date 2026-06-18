@@ -15,7 +15,7 @@ from call_analytics.infra.adapters.noop import (
     NoopTranscriber,
 )
 from call_analytics.infra.ports import TranscriberError
-from call_analytics.service.pipeline import CallProcessingService
+from call_analytics.service import CallProcessingService
 from domain import CallRecording, ChannelLayout, JobStatus, RecordingId
 from tests.call_analytics.service.conftest import (
     FailingTranscriber,
