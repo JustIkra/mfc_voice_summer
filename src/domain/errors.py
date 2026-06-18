@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class InvalidJobTransition(Exception):  # noqa: N818
+class InvalidJobTransition(Exception):
     """Доменная ошибка: недопустимый переход машины состояний `CallProcessingJob`."""
 
 
