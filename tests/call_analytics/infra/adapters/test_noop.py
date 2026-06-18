@@ -38,9 +38,15 @@ async def test_noop_diarizer_maps_channel_to_role() -> None:
         recording_id=RID,
         language="ru",
         segments=(
-            TranscriptSegment(TimeSpan(timedelta(0), timedelta(seconds=1)), "оператор", channel=0),
-            TranscriptSegment(TimeSpan(timedelta(seconds=1), timedelta(seconds=2)), "клиент", channel=1),
-            TranscriptSegment(TimeSpan(timedelta(seconds=2), timedelta(seconds=3)), "?", channel=None),
+            TranscriptSegment(
+                TimeSpan(timedelta(0), timedelta(seconds=1)), "оператор", channel=0
+            ),
+            TranscriptSegment(
+                TimeSpan(timedelta(seconds=1), timedelta(seconds=2)), "клиент", channel=1
+            ),
+            TranscriptSegment(
+                TimeSpan(timedelta(seconds=2), timedelta(seconds=3)), "?", channel=None
+            ),
         ),
         full_text="оператор клиент ?",
     )
