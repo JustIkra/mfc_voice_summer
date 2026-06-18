@@ -100,7 +100,7 @@ src/
 
 - **`JobStage`** — `TRANSCRIBE → DIARIZE → EMOTION → REPORT` (упорядочены).
 - **`JobStatus`** — `PENDING | RUNNING | DONE | FAILED`.
-- **`CallProcessingJob`** — `id`, `recording_id`, `completed_stages: frozenset[JobStage]`, `status`, `attempts: Mapping[JobStage, int]`, `last_error: tuple[str, str] | None` (kind, message), `created_at`, `updated_at`.
+- **`CallProcessingJob`** — `id`, `recording_id`, `completed_stages: frozenset[JobStage]`, `status`, `attempts: Mapping[JobStage, int]`, `last_error: tuple[str, str] | None` (kind, message), `created_at`. (Поле `updated_at` намеренно опущено в скелете: чтобы не тащить `now()` в каждый доменный переход; добавим, когда появится консьюмер времени обновления.)
   - Методы-переходы: `start_stage(stage)`, `complete_stage(stage)`, `fail_stage(stage, kind, message)`, `retry()`. Невалидный переход → `InvalidJobTransition`.
   - `next_stage() -> JobStage | None` — первая незавершённая стадия в порядке.
 - **`InvalidJobTransition`** (`domain/errors.py`) — доменная ошибка.
