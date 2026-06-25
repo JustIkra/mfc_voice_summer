@@ -42,6 +42,7 @@ class InMemoryArtifactStore(ArtifactStore):
         self._diarizations: dict[str, DiarizedTranscript] = {}
         self._emotions: dict[str, EmotionAnalysis] = {}
         self._reports: dict[str, CallReport] = {}
+        self._report_pdfs: dict[str, bytes] = {}
 
     async def save_recording(self, recording: CallRecording) -> None:
         self._recordings[recording.id.value] = recording
@@ -80,6 +81,12 @@ class InMemoryArtifactStore(ArtifactStore):
 
     async def load_report(self, recording_id: RecordingId) -> CallReport | None:
         return self._reports.get(recording_id.value)
+
+    async def save_report_pdf(self, recording_id: RecordingId, content: bytes) -> None:
+        self._report_pdfs[recording_id.value] = content
+
+    async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None:
+        return self._report_pdfs.get(recording_id.value)
 
 
 __all__ = ["InMemoryArtifactStore", "InMemoryJobRepository"]

@@ -12,6 +12,7 @@ from call_analytics.infra.ports import (
     JobRepository,
     ReportGenerator,
     ReportGeneratorError,
+    ReportRenderer,
     SpeakerDiarizer,
     SpeakerDiarizerError,
     Transcriber,
@@ -56,6 +57,7 @@ class CallProcessingService(CallProcessingPipeline):
         jobs: JobRepository,
         artifacts: ArtifactStore,
         clock: Callable[[], datetime],
+        report_renderer: ReportRenderer | None = None,
     ) -> None:
         self._source = source
         self._transcriber = transcriber
@@ -65,6 +67,7 @@ class CallProcessingService(CallProcessingPipeline):
         self._jobs = jobs
         self._artifacts = artifacts
         self._clock = clock
+        self._report_renderer = report_renderer
 
     async def enqueue(self, recording: CallRecording) -> CallProcessingJob:
         job = CallProcessingJob.create(
@@ -112,7 +115,7 @@ class CallProcessingService(CallProcessingPipeline):
     async def _execute(self, stage: JobStage, recording_id: RecordingId) -> None:
         if stage is JobStage.TRANSCRIBE:
             audio = await self._fetch_audio(recording_id)
-            transcript = await self._transcriber.transcribe(audio)
+            transcript = await self._transcriber.transcribe(recording_id, audio)
             await self._artifacts.save_transcript(transcript)
         elif stage is JobStage.DIARIZE:
             audio = await self._fetch_audio(recording_id)
@@ -133,16 +136,29 @@ class CallProcessingService(CallProcessingPipeline):
             emotion = await self._emotion_recognizer.recognize(audio, stored_diarized)
             await self._artifacts.save_emotion(emotion)
         elif stage is JobStage.REPORT:
+            stored_transcript = await self._artifacts.load_transcript(recording_id)
             stored_diarized = await self._artifacts.load_diarization(recording_id)
             stored_emotion = await self._artifacts.load_emotion(recording_id)
-            if stored_diarized is None or stored_emotion is None:
+            if (
+                stored_transcript is None
+                or stored_diarized is None
+                or stored_emotion is None
+            ):
                 raise RuntimeError(
-                    f"артефакты diarization/emotion отсутствуют для {recording_id.value}"
+                    f"артефакты transcript/diarization/emotion отсутствуют для {recording_id.value}"
                 )
             report = await self._report_generator.generate(
-                stored_diarized, stored_emotion
+                stored_transcript, stored_diarized, stored_emotion
             )
             await self._artifacts.save_report(report)
+            if self._report_renderer is not None:
+                pdf = await self._report_renderer.render(
+                    report,
+                    stored_transcript,
+                    stored_diarized,
+                    stored_emotion,
+                )
+                await self._artifacts.save_report_pdf(recording_id, pdf)
 
     async def _fetch_audio(self, recording_id: RecordingId) -> AudioBlob:
         return await self._source.fetch_audio(recording_id)

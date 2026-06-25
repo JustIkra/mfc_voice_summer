@@ -48,7 +48,7 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
             data = path.read_bytes()
         except OSError as error:
             raise CallRecordingSourceError.unexpected(str(error)) from error
-        return AudioBlob(data=data, codec="wav", layout=layout)
+        return AudioBlob(data=data, codec="wav", layout=layout, source_path=str(path))
 
     def _wav_files(self) -> list[Path]:
         try:

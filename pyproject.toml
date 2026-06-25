@@ -3,7 +3,10 @@ name = "mfc-voice-summer"
 version = "0.1.0"
 description = "Пайплайн анализа звонков ИИ колл-центра (Naumen)"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "aio-pika>=9.4",
+    "reportlab>=4.0",
+]
 
 [project.optional-dependencies]
 dev = [

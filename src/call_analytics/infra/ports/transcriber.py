@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
-from domain import AudioBlob, Transcript
+from domain import AudioBlob, RecordingId, Transcript
 
 
 class TranscriberError(Exception):
@@ -40,7 +40,7 @@ class Transcriber(ABC):
     """Абстрактный порт распознавания речи в текст."""
 
     @abstractmethod
-    async def transcribe(self, audio: AudioBlob) -> Transcript:
+    async def transcribe(self, recording_id: RecordingId, audio: AudioBlob) -> Transcript:
         """Распознать аудио в `Transcript` с тайм-кодами по сегментам."""
 
 

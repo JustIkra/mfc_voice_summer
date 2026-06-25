@@ -24,6 +24,8 @@ class SegmentEmotion:
     span: TimeSpan
     role: SpeakerRole
     label: EmotionLabel
+    score: float = 1.0
+    speaker: str | None = None
     scores: Mapping[EmotionLabel, float] = field(default_factory=dict)
 
 

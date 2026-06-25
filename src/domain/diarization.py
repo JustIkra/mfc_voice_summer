@@ -18,6 +18,9 @@ class DiarizedSegment:
     span: TimeSpan
     role: SpeakerRole
     text: str
+    speaker: str | None = None
+    speaker_overlap_seconds: float = 0.0
+    speaker_coverage: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

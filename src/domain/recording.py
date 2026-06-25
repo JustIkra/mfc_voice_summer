@@ -22,6 +22,7 @@ class AudioBlob:
     data: bytes
     codec: str
     layout: ChannelLayout
+    source_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

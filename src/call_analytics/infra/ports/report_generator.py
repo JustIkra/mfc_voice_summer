@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
-from domain import CallReport, DiarizedTranscript, EmotionAnalysis
+from domain import CallReport, DiarizedTranscript, EmotionAnalysis, Transcript
 
 
 class ReportGeneratorError(Exception):
@@ -51,7 +51,10 @@ class ReportGenerator(ABC):
 
     @abstractmethod
     async def generate(
-        self, diarized: DiarizedTranscript, emotions: EmotionAnalysis
+        self,
+        transcript: Transcript,
+        diarized: DiarizedTranscript,
+        emotions: EmotionAnalysis,
     ) -> CallReport:
         """Построить `CallReport` по размеченному транскрипту и эмоциям."""
 

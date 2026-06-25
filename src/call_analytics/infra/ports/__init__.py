@@ -7,6 +7,11 @@ from call_analytics.infra.ports.emotion_recognizer import (
     EmotionRecognizerError,
 )
 from call_analytics.infra.ports.job_repository import JobRepository
+from call_analytics.infra.ports.processing_queue import (
+    ProcessingMessage,
+    ProcessingQueue,
+    ProcessingQueueError,
+)
 from call_analytics.infra.ports.recording_source import (
     CallRecordingSource,
     CallRecordingSourceError,
@@ -16,6 +21,7 @@ from call_analytics.infra.ports.report_generator import (
     ReportGenerator,
     ReportGeneratorError,
 )
+from call_analytics.infra.ports.report_renderer import ReportRenderer
 from call_analytics.infra.ports.transcriber import Transcriber, TranscriberError
 
 __all__ = [
@@ -26,8 +32,12 @@ __all__ = [
     "EmotionRecognizerError",
     "JobRepository",
     "Period",
+    "ProcessingMessage",
+    "ProcessingQueue",
+    "ProcessingQueueError",
     "ReportGenerator",
     "ReportGeneratorError",
+    "ReportRenderer",
     "SpeakerDiarizer",
     "SpeakerDiarizerError",
     "Transcriber",

@@ -51,5 +51,11 @@ class ArtifactStore(ABC):
     @abstractmethod
     async def load_report(self, recording_id: RecordingId) -> CallReport | None: ...
 
+    @abstractmethod
+    async def save_report_pdf(self, recording_id: RecordingId, content: bytes) -> None: ...
+
+    @abstractmethod
+    async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None: ...
+
 
 __all__ = ["ArtifactStore"]

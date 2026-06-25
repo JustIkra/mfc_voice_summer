@@ -27,7 +27,7 @@ RID = RecordingId("rec-1")
 
 async def test_noop_transcriber_returns_deterministic_transcript() -> None:
     blob = AudioBlob(data=b"x", codec="wav", layout=ChannelLayout.STEREO)
-    tr = await NoopTranscriber(RID).transcribe(blob)
+    tr = await NoopTranscriber(RID).transcribe(RID, blob)
     assert isinstance(tr, Transcript)
     assert tr.recording_id == RID
     assert tr.segments
@@ -67,9 +67,15 @@ async def test_noop_emotion_is_neutral_per_segment() -> None:
 
 
 async def test_noop_report_generator_builds_report() -> None:
+    transcript = Transcript(
+        recording_id=RID,
+        language="ru",
+        segments=(),
+        full_text="",
+    )
     dt = DiarizedTranscript(recording_id=RID, segments=())
     ea = EmotionAnalysis(recording_id=RID, segments=())
     generated_at = datetime(2026, 1, 10, tzinfo=MSK)
-    report = await NoopReportGenerator(generated_at=generated_at).generate(dt, ea)
+    report = await NoopReportGenerator(generated_at=generated_at).generate(transcript, dt, ea)
     assert report.recording_id == RID
     assert report.summary

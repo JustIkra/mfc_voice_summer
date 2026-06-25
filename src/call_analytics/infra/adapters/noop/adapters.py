@@ -33,7 +33,7 @@ class NoopTranscriber(Transcriber):
     def __init__(self, recording_id: RecordingId) -> None:
         self._recording_id = recording_id
 
-    async def transcribe(self, audio: AudioBlob) -> Transcript:
+    async def transcribe(self, recording_id: RecordingId, audio: AudioBlob) -> Transcript:
         segment = TranscriptSegment(
             span=TimeSpan(start=timedelta(0), end=timedelta(seconds=1)),
             text="noop",
@@ -96,7 +96,10 @@ class NoopReportGenerator(ReportGenerator):
         self._generated_at = generated_at
 
     async def generate(
-        self, diarized: DiarizedTranscript, emotions: EmotionAnalysis
+        self,
+        transcript: Transcript,
+        diarized: DiarizedTranscript,
+        emotions: EmotionAnalysis,
     ) -> CallReport:
         return CallReport(
             recording_id=diarized.recording_id,

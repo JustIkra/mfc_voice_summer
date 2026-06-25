@@ -27,11 +27,11 @@ class FailingTranscriber(Transcriber):
         self._then = then
         self.calls = 0
 
-    async def transcribe(self, audio: AudioBlob) -> Transcript:
+    async def transcribe(self, recording_id: RecordingId, audio: AudioBlob) -> Transcript:
         self.calls += 1
         if self.calls == 1:
             raise self._error
-        return await self._then.transcribe(audio)
+        return await self._then.transcribe(recording_id, audio)
 
 
 def stereo_blob() -> AudioBlob:
