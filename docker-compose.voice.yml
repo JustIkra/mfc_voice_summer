@@ -186,6 +186,8 @@ services:
               capabilities: [gpu]
 
   diarization-api:
+    build:
+      context: ./docker/voice-model-api
     image: mfc-voice-model-api:latest
     restart: unless-stopped
     env_file:
@@ -219,6 +221,8 @@ services:
               capabilities: [gpu]
 
   emotion-api:
+    build:
+      context: ./docker/voice-model-api
     image: mfc-voice-model-api:latest
     restart: unless-stopped
     env_file:
