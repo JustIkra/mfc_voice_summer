@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from call_analytics.infra.adapters.local_dir._atomic import (
+    atomic_write_bytes,
+    atomic_write_text,
+)
 from call_analytics.service.ports import ArtifactStore
 from domain import (
     CallRecording,
@@ -140,8 +144,7 @@ class LocalArtifactStore(ArtifactStore):
 
     async def save_report_pdf(self, recording_id: RecordingId, content: bytes) -> None:
         path = self._artifact_path("reports", recording_id, ".pdf")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+        atomic_write_bytes(path, content)
 
     async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None:
         path = self._artifact_path("reports", recording_id, ".pdf")
@@ -163,8 +166,7 @@ class LocalArtifactStore(ArtifactStore):
         return self._root / directory / f"{recording_id.value}{suffix}"
 
     def _write_json(self, path: Path, payload: dict[str, Any]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
 
     def _read_json(self, path: Path) -> dict[str, Any] | None:
         if not path.is_file():

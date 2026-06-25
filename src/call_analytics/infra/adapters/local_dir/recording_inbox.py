@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
+from collections.abc import Iterator
 from pathlib import Path
+from uuid import uuid4
 
 from call_analytics.infra.adapters.local_dir.recording_source import (
     LocalDirectoryRecordingSource,
@@ -18,9 +21,16 @@ class LocalDirectoryRecordingInbox(RecordingInbox):
 
     async def save_wav(self, filename: str, content: bytes) -> CallRecording:
         self._directory.mkdir(parents=True, exist_ok=True)
-        target = self._next_path(self._safe_name(filename))
-        target.write_bytes(content)
-        return LocalDirectoryRecordingSource(self._directory)._to_recording(target)
+        safe_name = self._safe_name(filename)
+        temporary = self._temporary_path(safe_name)
+        source = LocalDirectoryRecordingSource(self._directory)
+        try:
+            temporary.write_bytes(content)
+            source._to_recording(temporary)
+            target = self._link_to_next_available_path(temporary, safe_name)
+            return source._to_recording(target)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def _safe_name(self, filename: str) -> str:
         source_name = Path(filename).name
@@ -30,16 +40,24 @@ class LocalDirectoryRecordingInbox(RecordingInbox):
             safe_stem = "recording"
         return f"{safe_stem}.wav"
 
-    def _next_path(self, filename: str) -> Path:
-        candidate = self._directory / filename
-        if not candidate.exists():
+    def _link_to_next_available_path(self, temporary: Path, filename: str) -> Path:
+        for candidate in self._candidate_paths(filename):
+            try:
+                os.link(temporary, candidate)
+            except FileExistsError:
+                continue
             return candidate
+        raise OSError(f"не удалось подобрать имя файла для {filename}")
+
+    def _candidate_paths(self, filename: str) -> Iterator[Path]:
+        candidate = self._directory / filename
+        yield candidate
         stem = candidate.stem
         for index in range(1, 10_000):
-            next_candidate = self._directory / f"{stem}-{index}.wav"
-            if not next_candidate.exists():
-                return next_candidate
-        raise OSError(f"не удалось подобрать имя файла для {filename}")
+            yield self._directory / f"{stem}-{index}.wav"
+
+    def _temporary_path(self, filename: str) -> Path:
+        return self._directory / f".{filename}.{os.getpid()}.{uuid4().hex}.upload"
 
 
 __all__ = ["LocalDirectoryRecordingInbox"]

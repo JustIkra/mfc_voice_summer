@@ -30,7 +30,11 @@ class ProcessingWorker:
         if message is None:
             return False
 
-        job = await self._pipeline.process(message.recording_id)
+        try:
+            job = await self._pipeline.process(message.recording_id)
+        except Exception:
+            await self._queue.reject(message, requeue=self._requeue_failed)
+            raise
         if job.status is JobStatus.DONE:
             await self._queue.ack(message)
         else:

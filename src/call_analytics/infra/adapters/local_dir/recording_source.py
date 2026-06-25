@@ -34,7 +34,10 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
     async def list_recordings(self, period: Period) -> Sequence[CallRecording]:
         recordings: list[CallRecording] = []
         for path in sorted(self._wav_files()):
-            recording = self._to_recording(path)
+            try:
+                recording = self._to_recording(path)
+            except CallRecordingSourceError:
+                continue
             if period.start <= recording.started_at <= period.end:
                 recordings.append(recording)
         return recordings

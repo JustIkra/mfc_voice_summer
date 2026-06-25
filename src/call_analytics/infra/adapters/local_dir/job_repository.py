@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from call_analytics.infra.adapters.local_dir._atomic import atomic_write_text
 from call_analytics.service.ports import JobRepository
 from domain import CallProcessingJob, JobStage, JobStatus, RecordingId
 
@@ -16,10 +17,9 @@ class LocalJobRepository(JobRepository):
 
     async def save(self, job: CallProcessingJob) -> None:
         path = self._path(job.id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
+        atomic_write_text(
+            path,
             json.dumps(self._to_json(job), ensure_ascii=False, indent=2),
-            encoding="utf-8",
         )
 
     async def get(self, job_id: str) -> CallProcessingJob | None:

@@ -69,6 +69,16 @@ async def test_period_filter_excludes_outside(tmp_path: Path) -> None:
     assert await source.list_recordings(narrow) == []
 
 
+async def test_list_recordings_skips_corrupt_wav_files(tmp_path: Path) -> None:
+    _make_wav(tmp_path / f"{MONO_NAME}.wav", nchannels=1)
+    (tmp_path / "broken.wav").write_bytes(b"not a wav")
+    source = LocalDirectoryRecordingSource(tmp_path)
+
+    recordings = await source.list_recordings(_wide_period())
+
+    assert [recording.id.value for recording in recordings] == [MONO_NAME]
+
+
 async def test_fetch_audio_returns_bytes_and_layout(tmp_path: Path) -> None:
     path = tmp_path / f"{STEREO_NAME}.wav"
     _make_wav(path, nchannels=2)
@@ -99,6 +109,34 @@ async def test_recording_inbox_saves_uploaded_wav(tmp_path: Path) -> None:
     assert recording.metadata["filename"] == "new-call.wav"
     assert (tmp_path / "new-call.wav").is_file()
     assert not (tmp_path.parent / "new-call.wav").exists()
+
+
+async def test_recording_inbox_removes_invalid_wav_upload(tmp_path: Path) -> None:
+    inbox = LocalDirectoryRecordingInbox(tmp_path)
+
+    with pytest.raises(CallRecordingSourceError):
+        await inbox.save_wav("bad.wav", b"not a wav")
+
+    assert not (tmp_path / "bad.wav").exists()
+
+
+async def test_recording_inbox_removes_partial_file_when_upload_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inbox = LocalDirectoryRecordingInbox(tmp_path)
+    original_write_bytes = Path.write_bytes
+
+    def failing_write_bytes(path: Path, data: bytes) -> int:
+        original_write_bytes(path, data[:4])
+        raise OSError("upload interrupted")
+
+    monkeypatch.setattr(Path, "write_bytes", failing_write_bytes)
+
+    with pytest.raises(OSError, match="upload interrupted"):
+        await inbox.save_wav("bad.wav", b"RIFFdemo")
+
+    assert list(tmp_path.iterdir()) == []
 
 
 async def test_recording_inbox_does_not_overwrite_existing_file(tmp_path: Path) -> None:
