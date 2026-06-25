@@ -15,6 +15,10 @@ class ProcessingWorker:
         self._pipeline = pipeline
         self._requeue_failed = requeue_failed
 
+    @property
+    def requeue_failed(self) -> bool:
+        return self._requeue_failed
+
     async def run_once(self) -> bool:
         message = await self._queue.get()
         if message is None:

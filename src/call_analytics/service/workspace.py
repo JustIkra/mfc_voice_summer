@@ -100,9 +100,11 @@ class PipelineWorkspace:
 
     async def retry_job(self, job_id: str) -> CallProcessingJob:
         try:
-            return await self._pipeline.retry(job_id)
+            job = await self._pipeline.retry(job_id)
         except KeyError as error:
             raise JobNotFound(job_id) from error
+        await self._queue.publish(job.recording_id)
+        return job
 
     async def load_report(self, recording_id: RecordingId) -> CallReport | None:
         return await self._artifacts.load_report(recording_id)

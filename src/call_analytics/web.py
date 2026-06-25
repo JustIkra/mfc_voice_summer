@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -63,12 +64,13 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
         file: Annotated[UploadFile, File()],
     ) -> dict[str, Any]:
         if file.filename is None or not file.filename.lower().endswith(".wav"):
-            raise HTTPException(status_code=400, detail="upload a .wav file")
+            raise HTTPException(status_code=400, detail="загрузите запись в формате .wav")
         try:
             item = await workspace().upload_recording(file.filename, await file.read())
+            job = await workspace().enqueue_recording(item.recording.id)
         except RecordingUploadUnavailable as error:
             raise HTTPException(status_code=501, detail="upload is not configured") from error
-        return _recording_to_json(item.recording, item.job)
+        return _recording_to_json(item.recording, job)
 
     @app.get("/api/jobs/{job_id}")
     async def get_job(job_id: str) -> dict[str, Any]:
@@ -77,6 +79,23 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
         except JobNotFound as error:
             raise HTTPException(status_code=404, detail="job not found") from error
 
+    @app.websocket("/api/jobs/{job_id}/events")
+    async def job_events(websocket: WebSocket, job_id: str) -> None:
+        await websocket.accept()
+        try:
+            while True:
+                try:
+                    job = await workspace().get_job(job_id)
+                except JobNotFound:
+                    await websocket.close(code=1008, reason="job not found")
+                    return
+                await websocket.send_json(_job_to_json(job))
+                if job.status.value in {"done", "failed"}:
+                    return
+                await asyncio.sleep(1)
+        except WebSocketDisconnect:
+            return
+
     @app.post("/api/recordings/{recording_id}/jobs", status_code=201)
     async def enqueue_recording(recording_id: str) -> dict[str, Any]:
         try:
@@ -84,10 +103,6 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
         except RecordingNotFound as error:
             raise HTTPException(status_code=404, detail="recording not found") from error
         return _job_to_json(job)
-
-    @app.post("/api/jobs/{job_id}/process")
-    async def process_job(job_id: str) -> dict[str, Any]:
-        return _job_to_json(await workspace().process_recording(RecordingId(job_id)))
 
     @app.post("/api/jobs/{job_id}/retry")
     async def retry_job(job_id: str) -> dict[str, Any]:

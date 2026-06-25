@@ -15,16 +15,26 @@ const statusLabels = {
 const state = {
   recordings: [],
   selectedId: null,
+  jobSocket: null,
+  liveJobId: null,
+  liveStatus: "idle",
+  searchQuery: "",
 };
 
 const recordingsNode = document.querySelector("#recordings");
 const detailsNode = document.querySelector("#details");
 const toastNode = document.querySelector("#toast");
 const wavInput = document.querySelector("#wavInput");
+const liveStatusNode = document.querySelector("#liveStatus");
+const recordingSearch = document.querySelector("#recordingSearch");
 
 document.querySelector("#refreshButton").addEventListener("click", () => refresh());
 document.querySelector("#uploadButton").addEventListener("click", () => wavInput.click());
 wavInput.addEventListener("change", () => uploadSelectedFile());
+recordingSearch.addEventListener("input", () => {
+  state.searchQuery = recordingSearch.value.trim().toLowerCase();
+  render();
+});
 
 recordingsNode.addEventListener("click", (event) => {
   const button = event.target.closest("[data-recording-id]");
@@ -65,11 +75,6 @@ async function runAction(action, recording) {
         method: "POST",
       });
       showToast("Запись поставлена в обработку");
-    } else if (action === "process" && job) {
-      await requestJson(`/api/jobs/${encodeURIComponent(job.id)}/process`, {
-        method: "POST",
-      });
-      showToast("Обработка выполнена");
     } else if (action === "retry" && job) {
       await requestJson(`/api/jobs/${encodeURIComponent(job.id)}/retry`, {
         method: "POST",
@@ -94,7 +99,7 @@ async function uploadSelectedFile() {
       headers: {},
     });
     state.selectedId = uploaded.id;
-    showToast("WAV загружен");
+    showToast("Запись поставлена в очередь");
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -129,14 +134,18 @@ function render() {
     minute: "2-digit",
     second: "2-digit",
   });
+  renderLiveStatus();
 
+  const visible = visibleRecordings();
   if (state.recordings.length === 0) {
-    recordingsNode.innerHTML =
-      '<div class="empty">Положите WAV-файлы в каталог записей и обновите список.</div>';
+    recordingsNode.innerHTML = '<div class="empty">Загрузите запись для анализа.</div>';
+  } else if (visible.length === 0) {
+    recordingsNode.innerHTML = '<div class="empty">Ничего не найдено.</div>';
   } else {
-    recordingsNode.innerHTML = state.recordings.map(renderRecording).join("");
+    recordingsNode.innerHTML = visible.map(renderRecording).join("");
   }
   renderDetails();
+  syncJobSocket();
 }
 
 function renderRecording(recording) {
@@ -152,6 +161,22 @@ function renderRecording(recording) {
       <span class="status ${job?.status ?? ""}">${statusLabels[job?.status] ?? "не начато"}</span>
     </button>
   `;
+}
+
+function visibleRecordings() {
+  if (!state.searchQuery) return state.recordings;
+  return state.recordings.filter((recording) => {
+    const jobStatus = statusLabels[recording.job?.status] ?? "не начато";
+    const haystack = [
+      recording.id,
+      recording.filename,
+      recording.channel_layout,
+      jobStatus,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(state.searchQuery);
+  });
 }
 
 function renderDetails() {
@@ -172,7 +197,6 @@ function renderDetails() {
     ${renderStages(job)}
     <div class="button-row">
       ${job ? "" : '<button class="action primary" type="button" data-action="enqueue">Поставить</button>'}
-      ${job ? '<button class="action primary" type="button" data-action="process">Обработать</button>' : ""}
       ${job?.status === "failed" ? '<button class="action danger" type="button" data-action="retry">Повторить</button>' : ""}
     </div>
     ${renderArtifacts(recording)}
@@ -218,6 +242,90 @@ function renderError(job) {
 
 function selectedRecording() {
   return state.recordings.find((item) => item.id === state.selectedId) ?? null;
+}
+
+function syncJobSocket() {
+  const recording = selectedRecording();
+  const job = recording?.job;
+  if (!job || isTerminalJob(job)) {
+    closeJobSocket();
+    state.liveStatus = job ? "closed" : "idle";
+    renderLiveStatus();
+    return;
+  }
+  if (state.jobSocket && state.liveJobId === job.id) {
+    renderLiveStatus();
+    return;
+  }
+  closeJobSocket();
+  state.liveJobId = job.id;
+  state.liveStatus = "connecting";
+  renderLiveStatus();
+
+  const socket = new WebSocket(jobEventsUrl(job.id));
+  state.jobSocket = socket;
+  socket.addEventListener("open", () => {
+    if (state.jobSocket !== socket) return;
+    state.liveStatus = "open";
+    renderLiveStatus();
+  });
+  socket.addEventListener("message", (event) => {
+    if (state.jobSocket !== socket) return;
+    updateJobSnapshot(JSON.parse(event.data));
+    render();
+  });
+  socket.addEventListener("close", () => {
+    if (state.jobSocket !== socket) return;
+    state.jobSocket = null;
+    state.liveJobId = null;
+    state.liveStatus = "closed";
+    renderLiveStatus();
+    const latest = selectedRecording()?.job;
+    if (!latest || isTerminalJob(latest)) return;
+    refresh();
+  });
+  socket.addEventListener("error", () => {
+    if (state.jobSocket !== socket) return;
+    state.liveStatus = "closed";
+    renderLiveStatus();
+  });
+}
+
+function closeJobSocket() {
+  if (!state.jobSocket) return;
+  const socket = state.jobSocket;
+  state.jobSocket = null;
+  state.liveJobId = null;
+  socket.close(1000);
+}
+
+function updateJobSnapshot(job) {
+  const index = state.recordings.findIndex((item) => item.id === job.recording_id);
+  if (index === -1) return;
+  state.recordings[index] = {
+    ...state.recordings[index],
+    job,
+  };
+}
+
+function isTerminalJob(job) {
+  return job.status === "done" || job.status === "failed";
+}
+
+function jobEventsUrl(jobId) {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/api/jobs/${encodeURIComponent(jobId)}/events`;
+}
+
+function renderLiveStatus() {
+  const labels = {
+    idle: "offline",
+    connecting: "sync",
+    open: "live",
+    closed: "offline",
+  };
+  liveStatusNode.textContent = labels[state.liveStatus] ?? "offline";
+  liveStatusNode.className = `live-indicator ${state.liveStatus}`;
 }
 
 function formatDate(value) {

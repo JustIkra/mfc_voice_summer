@@ -48,7 +48,14 @@
         <div class="list-panel">
           <div class="panel-header">
             <h2>Записи</h2>
-            <span class="muted" id="lastUpdated"></span>
+            <div class="panel-meta">
+              <label class="search-box">
+                <span class="visually-hidden">Поиск записей</span>
+                <input id="recordingSearch" type="search" placeholder="Поиск" autocomplete="off" />
+              </label>
+              <span class="live-indicator idle" id="liveStatus">offline</span>
+              <span class="muted" id="lastUpdated"></span>
+            </div>
           </div>
           <div class="recordings" id="recordings"></div>
         </div>

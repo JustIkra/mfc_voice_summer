@@ -146,7 +146,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
         queue=queue,
         pipeline=pipeline,
         workspace=workspace,
-        worker=ProcessingWorker(queue=queue, pipeline=pipeline),
+        worker=ProcessingWorker(queue=queue, pipeline=pipeline, requeue_failed=False),
     )
 
 

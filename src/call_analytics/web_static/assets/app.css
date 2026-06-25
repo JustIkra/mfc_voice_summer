@@ -35,7 +35,8 @@ a {
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible {
   outline: 0.16rem solid var(--signal);
   outline-offset: 0.16rem;
 }
@@ -181,6 +182,80 @@ main {
   gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid var(--line);
+}
+
+.panel-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.search-box {
+  display: inline-flex;
+}
+
+.search-box input {
+  width: clamp(10rem, 18vw, 16rem);
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0 0.7rem;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+}
+
+.search-box input::placeholder {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 4.6rem;
+  height: 1.35rem;
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 760;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.live-indicator::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 99rem;
+  background: #a8b2be;
+  content: "";
+}
+
+.live-indicator.open {
+  color: var(--ok);
+}
+
+.live-indicator.open::before {
+  background: var(--ok);
+  box-shadow: 0 0 0 0.18rem rgba(21, 128, 92, 0.14);
+}
+
+.live-indicator.connecting {
+  color: var(--warn);
+}
+
+.live-indicator.connecting::before {
+  background: var(--warn);
 }
 
 .recordings {
@@ -372,5 +447,16 @@ main {
 
   .status {
     justify-self: start;
+  }
+
+  .panel-header,
+  .panel-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .search-box,
+  .search-box input {
+    width: 100%;
   }
 }

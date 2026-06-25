@@ -21,7 +21,7 @@ from call_analytics.service import CallProcessingService
 from call_analytics.service.ports import ProcessingMessage, ProcessingQueue
 from call_analytics.service.ports.application import RecordingInbox
 from call_analytics.service.workspace import PipelineWorkspace, RecordingNotFound
-from domain import AudioBlob, CallRecording, ChannelLayout, Period, RecordingId
+from domain import AudioBlob, CallRecording, ChannelLayout, JobStage, Period, RecordingId
 
 MSK = timezone(timedelta(hours=3))
 
@@ -162,6 +162,19 @@ async def test_process_recording_runs_pipeline_to_report() -> None:
 
     assert job.status.value == "done"
     assert report.summary
+
+
+async def test_retry_job_publishes_message_for_worker() -> None:
+    workspace, queue, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+    running = (await workspace.get_job("call-001")).start_stage(JobStage.TRANSCRIBE)
+    failed = running.fail_stage(JobStage.TRANSCRIBE, "TRANSCRIBER", "boom")
+    await workspace._jobs.save(failed)
+
+    job = await workspace.retry_job("call-001")
+
+    assert job.status.value == "pending"
+    assert [item.value for item in queue.published] == ["call-001", "call-001"]
 
 
 def test_report_pdf_returns_bytes_from_artifact_store() -> None:

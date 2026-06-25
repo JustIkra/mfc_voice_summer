@@ -127,7 +127,7 @@ def test_recordings_endpoint_lists_available_recordings() -> None:
 
 
 def test_upload_endpoint_saves_wav_and_returns_recording() -> None:
-    client, _, _ = build_client()
+    client, queue, _ = build_client()
 
     response = client.post(
         "/api/recordings",
@@ -137,7 +137,8 @@ def test_upload_endpoint_saves_wav_and_returns_recording() -> None:
     assert response.status_code == 201
     assert response.json()["id"] == "uploaded"
     assert response.json()["filename"] == "uploaded.wav"
-    assert response.json()["job"] is None
+    assert response.json()["job"]["status"] == "pending"
+    assert [item.value for item in queue.published] == ["uploaded"]
 
 
 def test_enqueue_endpoint_creates_job_and_publishes_message() -> None:
@@ -151,20 +152,25 @@ def test_enqueue_endpoint_creates_job_and_publishes_message() -> None:
     assert [item.value for item in queue.published] == ["call-001"]
 
 
-def test_process_endpoint_runs_pipeline_to_done_status() -> None:
+def test_process_endpoint_is_not_exposed_from_web_api() -> None:
     client, _, _ = build_client()
     client.post("/api/recordings/call-001/jobs")
 
     response = client.post("/api/jobs/call-001/process")
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "done"
-    assert response.json()["completed_stages"] == [
-        "transcribe",
-        "diarize",
-        "emotion",
-        "report",
-    ]
+    assert response.status_code == 404
+
+
+def test_job_events_websocket_streams_current_status() -> None:
+    client, _, _ = build_client()
+    client.post("/api/recordings/call-001/jobs")
+
+    with client.websocket_connect("/api/jobs/call-001/events") as websocket:
+        message = websocket.receive_json()
+
+    assert message["id"] == "call-001"
+    assert message["status"] == "pending"
+    assert message["completed_stages"] == []
 
 
 def test_report_pdf_endpoint_returns_saved_artifact() -> None:

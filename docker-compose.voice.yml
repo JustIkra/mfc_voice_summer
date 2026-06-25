@@ -46,6 +46,43 @@ services:
       emotion-api:
         condition: service_healthy
 
+  worker:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: mfc-voice-web:latest
+    restart: unless-stopped
+    command: python -m call_analytics.worker_app
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      VOICE_RECORDINGS_DIR: /data/recordings
+      VOICE_ARTIFACTS_DIR: /data/reports
+      VOICE_ASR_URL: http://asr-api:8100
+      VOICE_DIARIZATION_URL: http://diarization-api:8100
+      VOICE_EMOTION_URL: http://emotion-api:8100
+      VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
+      VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
+      VOICE_CONTAINER_RECORDINGS_DIR: /data/recordings
+      VOICE_QWEN_BASE_URL: ${VOICE_QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
+      VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
+      VOICE_WORKER_IDLE_SLEEP_SECONDS: ${VOICE_WORKER_IDLE_SLEEP_SECONDS:-1}
+    volumes:
+      - ./.recordings:/data/recordings
+      - ./.reports:/data/reports
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      asr-api:
+        condition: service_healthy
+      diarization-api:
+        condition: service_healthy
+      emotion-api:
+        condition: service_healthy
+
   qwen-api:
     image: vllm/vllm-openai:${VOICE_QWEN_VLLM_TAG:-latest}
     profiles:
@@ -76,7 +113,7 @@ services:
       - --tensor-parallel-size
       - "${VOICE_QWEN_TENSOR_PARALLEL_SIZE:-2}"
       - --gpu-memory-utilization
-      - "${VOICE_QWEN_GPU_MEMORY_UTILIZATION:-0.85}"
+      - "${VOICE_QWEN_GPU_MEMORY_UTILIZATION:-0.76}"
       - --max-model-len
       - "${VOICE_QWEN_MAX_MODEL_LEN:-65536}"
       - --dtype
@@ -142,7 +179,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ["${ASR_NVIDIA_VISIBLE_DEVICES:-0}"]
               capabilities: [gpu]
 
   diarization-api:
@@ -175,7 +212,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ["${DIARIZATION_NVIDIA_VISIBLE_DEVICES:-0}"]
               capabilities: [gpu]
 
   emotion-api:
@@ -208,5 +245,5 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ["${EMOTION_NVIDIA_VISIBLE_DEVICES:-0}"]
               capabilities: [gpu]
