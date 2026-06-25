@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from call_analytics.infra.ports import (
+from call_analytics.service.ports import (
     CallRecordingSource,
     CallRecordingSourceError,
     Period,

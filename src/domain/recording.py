@@ -12,6 +12,12 @@ class RecordingId:
     value: str
 
 
+@dataclass(frozen=True, slots=True)
+class Period:
+    start: datetime
+    end: datetime
+
+
 class ChannelLayout(Enum):
     MONO = auto()
     STEREO = auto()
@@ -22,7 +28,6 @@ class AudioBlob:
     data: bytes
     codec: str
     layout: ChannelLayout
-    source_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,4 +40,4 @@ class CallRecording:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
-__all__ = ["AudioBlob", "CallRecording", "ChannelLayout", "RecordingId"]
+__all__ = ["AudioBlob", "CallRecording", "ChannelLayout", "Period", "RecordingId"]

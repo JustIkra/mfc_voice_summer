@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from call_analytics.infra.adapters.model_api import QwenReportGenerator, extract_json_object
+from call_analytics.service import DialogueAssembler
 from domain import (
     DiarizedSegment,
     DiarizedTranscript,
@@ -82,6 +83,7 @@ async def test_qwen_report_prompt_contains_dialogue_and_keeps_thinking_enabled()
         base_url="http://qwen.local/v1",
         model="qwen3.6-35b",
         clock=lambda: NOW,
+        assembler=DialogueAssembler(),
         post_json=fake_post_json,
     )
     transcript = Transcript(

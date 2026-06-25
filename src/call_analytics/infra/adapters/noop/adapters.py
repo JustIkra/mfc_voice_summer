@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from call_analytics.infra.ports import (
+from call_analytics.service.ports import (
     EmotionRecognizer,
     ReportGenerator,
     SpeakerDiarizer,

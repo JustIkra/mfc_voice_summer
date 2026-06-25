@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from call_analytics.infra.ports import ProcessingQueue
-from call_analytics.service.ports import CallProcessingPipeline
+from call_analytics.service.ports import CallProcessingPipeline, ProcessingQueue
 from domain import JobStatus
 
 

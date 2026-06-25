@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from call_analytics.infra.ports import JobRepository
+from call_analytics.service.ports import JobRepository
 from domain import CallProcessingJob, JobStage, JobStatus, RecordingId
 
 

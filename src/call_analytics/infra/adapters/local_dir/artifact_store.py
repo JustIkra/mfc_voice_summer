@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
-from call_analytics.infra.ports import ArtifactStore
+from call_analytics.service.ports import ArtifactStore
 from domain import (
     CallRecording,
     CallReport,

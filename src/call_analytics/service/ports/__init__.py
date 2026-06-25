@@ -1,5 +1,51 @@
 from __future__ import annotations
 
+from call_analytics.service.ports.application import (
+    ArtifactStore,
+    CallRecordingSource,
+    CallRecordingSourceError,
+    DialogueAssemblerPort,
+    EmotionRecognizer,
+    EmotionRecognizerError,
+    JobRepository,
+    ModelAudio,
+    ModelAudioStager,
+    Period,
+    ProcessingMessage,
+    ProcessingQueue,
+    ProcessingQueueError,
+    ReportGenerator,
+    ReportGeneratorError,
+    ReportRenderer,
+    ReportRendererError,
+    SpeakerDiarizer,
+    SpeakerDiarizerError,
+    Transcriber,
+    TranscriberError,
+)
 from call_analytics.service.ports.pipeline import CallProcessingPipeline
 
-__all__ = ["CallProcessingPipeline"]
+__all__ = [
+    "ArtifactStore",
+    "CallProcessingPipeline",
+    "CallRecordingSource",
+    "CallRecordingSourceError",
+    "DialogueAssemblerPort",
+    "EmotionRecognizer",
+    "EmotionRecognizerError",
+    "JobRepository",
+    "ModelAudio",
+    "ModelAudioStager",
+    "Period",
+    "ProcessingMessage",
+    "ProcessingQueue",
+    "ProcessingQueueError",
+    "ReportGenerator",
+    "ReportGeneratorError",
+    "ReportRenderer",
+    "ReportRendererError",
+    "SpeakerDiarizer",
+    "SpeakerDiarizerError",
+    "Transcriber",
+    "TranscriberError",
+]

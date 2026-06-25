@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from call_analytics.infra.ports import (
+from call_analytics.service.ports import (
     ProcessingMessage,
     ProcessingQueue,
     ProcessingQueueError,
@@ -107,7 +107,7 @@ class RabbitMQProcessingQueue(ProcessingQueue):
 
     def _aio_pika(self) -> Any:
         try:
-            import aio_pika  # type: ignore[import-not-found]
+            import aio_pika
         except ModuleNotFoundError as error:
             raise ProcessingQueueError.connection(
                 "aio-pika is required for RabbitMQProcessingQueue"

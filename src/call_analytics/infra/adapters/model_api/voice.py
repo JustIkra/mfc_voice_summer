@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import urllib.error
-from pathlib import Path
 from typing import Any
 
-from call_analytics.infra.adapters.model_api.qwen import PostJson, urllib_post_json
-from call_analytics.infra.ports import (
+from call_analytics.infra.http import PostJson, urllib_post_json
+from call_analytics.service.ports import (
     EmotionRecognizer,
     EmotionRecognizerError,
+    ModelAudioStager,
     SpeakerDiarizer,
     SpeakerDiarizerError,
     Transcriber,
@@ -33,22 +33,14 @@ class _VoiceModelClient:
     def __init__(
         self,
         base_url: str,
+        audio_stager: ModelAudioStager,
         post_json: PostJson = urllib_post_json,
         timeout_seconds: int = 900,
-        container_recordings_dir: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._audio_stager = audio_stager
         self._post_json = post_json
         self._timeout_seconds = timeout_seconds
-        self._container_recordings_dir = container_recordings_dir
-
-    def _audio_path(self, audio: AudioBlob) -> str:
-        if audio.source_path is None:
-            raise ValueError("AudioBlob.source_path is required for model API adapters")
-        path = Path(audio.source_path)
-        if self._container_recordings_dir is not None:
-            return str(Path(self._container_recordings_dir) / path.name)
-        return str(path)
 
     async def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._post_json(
@@ -61,15 +53,17 @@ class _VoiceModelClient:
 class VoiceModelTranscriber(_VoiceModelClient, Transcriber):
     async def transcribe(self, recording_id: RecordingId, audio: AudioBlob) -> Transcript:
         try:
-            payload = await self._post("/transcribe", {"path": self._audio_path(audio)})
+            staged = await self._audio_stager.stage(recording_id, audio)
+            payload = await self._post(
+                "/transcribe",
+                {"path": staged.path},
+            )
         except ValueError as error:
             raise TranscriberError.invalid_format(str(error)) from error
         except TimeoutError as error:
             raise TranscriberError.timeout(str(error)) from error
         except urllib.error.URLError as error:
             raise TranscriberError.connection(str(error)) from error
-        except Exception as error:
-            raise TranscriberError.unexpected(str(error)) from error
 
         segments = tuple(self._segment(item) for item in payload.get("segments", ()))
         return Transcript(
@@ -101,13 +95,17 @@ class VoiceModelDiarizer(_VoiceModelClient, SpeakerDiarizer):
         self, audio: AudioBlob, transcript: Transcript
     ) -> DiarizedTranscript:
         try:
-            payload = await self._post("/diarize", {"path": self._audio_path(audio)})
+            staged = await self._audio_stager.stage(transcript.recording_id, audio)
+            payload = await self._post(
+                "/diarize",
+                {"path": staged.path},
+            )
         except ValueError as error:
             raise SpeakerDiarizerError.invalid_format(str(error)) from error
         except TimeoutError as error:
             raise SpeakerDiarizerError.timeout(str(error)) from error
-        except Exception as error:
-            raise SpeakerDiarizerError.unexpected(str(error)) from error
+        except urllib.error.URLError as error:
+            raise SpeakerDiarizerError.connection(str(error)) from error
 
         return DiarizedTranscript(
             recording_id=transcript.recording_id,
@@ -128,10 +126,11 @@ class VoiceModelEmotionRecognizer(_VoiceModelClient, EmotionRecognizer):
         self, audio: AudioBlob, diarized: DiarizedTranscript
     ) -> EmotionAnalysis:
         try:
+            staged = await self._audio_stager.stage(diarized.recording_id, audio)
             payload = await self._post(
                 "/emotion",
                 {
-                    "path": self._audio_path(audio),
+                    "path": staged.path,
                     "diarization": [
                         {
                             "start": segment.span.start.total_seconds(),
@@ -148,8 +147,6 @@ class VoiceModelEmotionRecognizer(_VoiceModelClient, EmotionRecognizer):
             raise EmotionRecognizerError.timeout(str(error)) from error
         except urllib.error.URLError as error:
             raise EmotionRecognizerError.connection(str(error)) from error
-        except Exception as error:
-            raise EmotionRecognizerError.unexpected(str(error)) from error
 
         return EmotionAnalysis(
             recording_id=diarized.recording_id,

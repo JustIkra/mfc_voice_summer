@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from call_analytics.infra.ports import (
+from call_analytics.service.ports import (
     CallRecordingSource,
     CallRecordingSourceError,
     Period,
@@ -48,7 +48,7 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
             data = path.read_bytes()
         except OSError as error:
             raise CallRecordingSourceError.unexpected(str(error)) from error
-        return AudioBlob(data=data, codec="wav", layout=layout, source_path=str(path))
+        return AudioBlob(data=data, codec="wav", layout=layout)
 
     def _wav_files(self) -> list[Path]:
         try:

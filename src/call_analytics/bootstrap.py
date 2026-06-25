@@ -11,6 +11,7 @@ from call_analytics.infra.adapters.local_dir import (
     LocalJobRepository,
 )
 from call_analytics.infra.adapters.model_api import (
+    MountedDirectoryAudioStager,
     QwenReportGenerator,
     VoiceModelDiarizer,
     VoiceModelEmotionRecognizer,
@@ -18,13 +19,13 @@ from call_analytics.infra.adapters.model_api import (
 )
 from call_analytics.infra.adapters.queue import RabbitMQProcessingQueue
 from call_analytics.infra.adapters.reporting import ReportLabReportRenderer
-from call_analytics.infra.ports import (
+from call_analytics.service import CallProcessingService, DialogueAssembler, ProcessingWorker
+from call_analytics.service.ports import (
     ArtifactStore,
     CallRecordingSource,
     JobRepository,
     ProcessingQueue,
 )
-from call_analytics.service import CallProcessingService, ProcessingWorker
 
 MSK = timezone(timedelta(hours=3))
 
@@ -81,24 +82,29 @@ def build_application(settings: AppSettings | None = None) -> Application:
         settings.rabbitmq_url or "amqp://guest:guest@localhost/",
         queue_name=settings.rabbitmq_queue_name,
     )
+    audio_stager = MountedDirectoryAudioStager(
+        host_directory=settings.recordings_dir,
+        model_directory=settings.container_recordings_dir,
+    )
     pipeline = CallProcessingService(
         source=source,
         transcriber=VoiceModelTranscriber(
             base_url=settings.asr_url,
-            container_recordings_dir=settings.container_recordings_dir,
+            audio_stager=audio_stager,
         ),
         diarizer=VoiceModelDiarizer(
             base_url=settings.diarization_url,
-            container_recordings_dir=settings.container_recordings_dir,
+            audio_stager=audio_stager,
         ),
         emotion_recognizer=VoiceModelEmotionRecognizer(
             base_url=settings.emotion_url,
-            container_recordings_dir=settings.container_recordings_dir,
+            audio_stager=audio_stager,
         ),
         report_generator=QwenReportGenerator(
             base_url=settings.qwen_base_url,
             model=settings.qwen_model,
             clock=lambda: datetime.now(MSK),
+            assembler=DialogueAssembler(),
         ),
         jobs=jobs,
         artifacts=artifacts,

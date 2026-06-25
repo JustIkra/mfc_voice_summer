@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from call_analytics.infra.ports import ProcessingMessage, ProcessingQueue
+from call_analytics.service.ports import ProcessingMessage, ProcessingQueue
 from domain import RecordingId
 
 

@@ -10,7 +10,7 @@ from domain.diarization import DiarizedSegment, DiarizedTranscript, SpeakerRole
 from domain.emotion import EmotionAnalysis, EmotionLabel, SegmentEmotion
 from domain.errors import InvalidJobTransition
 from domain.job import STAGE_ORDER, CallProcessingJob, JobStage, JobStatus
-from domain.recording import AudioBlob, CallRecording, ChannelLayout, RecordingId
+from domain.recording import AudioBlob, CallRecording, ChannelLayout, Period, RecordingId
 from domain.report import (
     CallReport,
     ClientSatisfaction,
@@ -39,6 +39,7 @@ __all__ = [
     "InvalidJobTransition",
     "JobStage",
     "JobStatus",
+    "Period",
     "QuestionResolution",
     "RecordingId",
     "Satisfaction",

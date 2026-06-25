@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 
-from call_analytics.infra.ports import (
+from call_analytics.service.ports import (
     ArtifactStore,
+    CallProcessingPipeline,
     CallRecordingSource,
     CallRecordingSourceError,
     EmotionRecognizer,
@@ -13,12 +14,12 @@ from call_analytics.infra.ports import (
     ReportGenerator,
     ReportGeneratorError,
     ReportRenderer,
+    ReportRendererError,
     SpeakerDiarizer,
     SpeakerDiarizerError,
     Transcriber,
     TranscriberError,
 )
-from call_analytics.service.ports import CallProcessingPipeline
 from domain import (
     AudioBlob,
     CallProcessingJob,
@@ -34,7 +35,14 @@ _PORT_ERRORS = (
     SpeakerDiarizerError,
     EmotionRecognizerError,
     ReportGeneratorError,
+    ReportRendererError,
 )
+
+
+class _StageExecutionError(Exception):
+    def __init__(self, kind: str, message: str) -> None:
+        self.kind = kind
+        super().__init__(message)
 
 
 class CallProcessingService(CallProcessingPipeline):
@@ -93,6 +101,10 @@ class CallProcessingService(CallProcessingPipeline):
             job = job.fail_stage(stage, error.kind.name, str(error))
             await self._jobs.save(job)
             return job
+        except _StageExecutionError as error:
+            job = job.fail_stage(stage, error.kind, str(error))
+            await self._jobs.save(job)
+            return job
 
         job = job.complete_stage(stage)
         await self._jobs.save(job)
@@ -121,7 +133,8 @@ class CallProcessingService(CallProcessingPipeline):
             audio = await self._fetch_audio(recording_id)
             stored_transcript = await self._artifacts.load_transcript(recording_id)
             if stored_transcript is None:
-                raise RuntimeError(
+                raise _StageExecutionError(
+                    "MISSING_ARTIFACT",
                     f"артефакт transcript отсутствует для {recording_id.value}"
                 )
             diarized = await self._diarizer.diarize(audio, stored_transcript)
@@ -130,7 +143,8 @@ class CallProcessingService(CallProcessingPipeline):
             audio = await self._fetch_audio(recording_id)
             stored_diarized = await self._artifacts.load_diarization(recording_id)
             if stored_diarized is None:
-                raise RuntimeError(
+                raise _StageExecutionError(
+                    "MISSING_ARTIFACT",
                     f"артефакт diarization отсутствует для {recording_id.value}"
                 )
             emotion = await self._emotion_recognizer.recognize(audio, stored_diarized)
@@ -144,7 +158,8 @@ class CallProcessingService(CallProcessingPipeline):
                 or stored_diarized is None
                 or stored_emotion is None
             ):
-                raise RuntimeError(
+                raise _StageExecutionError(
+                    "MISSING_ARTIFACT",
                     f"артефакты transcript/diarization/emotion отсутствуют для {recording_id.value}"
                 )
             report = await self._report_generator.generate(

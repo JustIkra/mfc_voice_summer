@@ -21,6 +21,7 @@ def test_domain_public_surface() -> None:
         "InvalidJobTransition",
         "JobStage",
         "JobStatus",
+        "Period",
         "QuestionResolution",
         "RecordingId",
         "Satisfaction",

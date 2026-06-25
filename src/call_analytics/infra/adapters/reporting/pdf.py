@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from call_analytics.infra.ports import ReportRenderer
+from call_analytics.service.ports import ReportRenderer, ReportRendererError
 from domain import CallReport, DiarizedTranscript, EmotionAnalysis, Transcript
 
 
@@ -34,7 +34,9 @@ class ReportLabReportRenderer(ReportRenderer):
                 TableStyle,
             )
         except ModuleNotFoundError as error:
-            raise RuntimeError("reportlab is required for PDF report rendering") from error
+            raise ReportRendererError.unexpected(
+                "reportlab is required for PDF report rendering"
+            ) from error
 
         buffer = BytesIO()
         font = self._register_font(pdfmetrics, TTFont)

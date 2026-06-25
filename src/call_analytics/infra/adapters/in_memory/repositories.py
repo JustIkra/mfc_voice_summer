@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from call_analytics.infra.ports import ArtifactStore, JobRepository
+from call_analytics.service.ports import ArtifactStore, JobRepository
 from domain import (
     CallProcessingJob,
     CallRecording,

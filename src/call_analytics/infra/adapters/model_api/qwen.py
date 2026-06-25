@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 import textwrap
 import urllib.error
-import urllib.request
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any, cast
 
-from call_analytics.infra.ports import ReportGenerator, ReportGeneratorError
-from call_analytics.service import DialogueAssembler
+from call_analytics.infra.http import PostJson, urllib_post_json
+from call_analytics.service.ports import (
+    DialogueAssemblerPort,
+    ReportGenerator,
+    ReportGeneratorError,
+)
 from domain import (
     CallReport,
     ClientSatisfaction,
@@ -23,8 +25,6 @@ from domain import (
     SynchronizedDialogue,
     Transcript,
 )
-
-PostJson = Callable[[str, dict[str, Any], int], Awaitable[dict[str, Any]]]
 
 
 def extract_json_object(message: dict[str, Any]) -> dict[str, Any]:
@@ -40,43 +40,22 @@ def extract_json_object(message: dict[str, Any]) -> dict[str, Any]:
         )
     return cast(dict[str, Any], json.loads(match.group(0)))
 
-
-async def urllib_post_json(
-    url: str, payload: dict[str, Any], timeout: int
-) -> dict[str, Any]:
-    def _post() -> dict[str, Any]:
-        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        request = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Authorization": "Bearer EMPTY",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return cast(dict[str, Any], json.loads(response.read().decode("utf-8")))
-
-    return await asyncio.to_thread(_post)
-
-
 class QwenReportGenerator(ReportGenerator):
     def __init__(
         self,
         base_url: str,
         model: str,
         clock: Callable[[], datetime],
+        assembler: DialogueAssemblerPort,
         post_json: PostJson = urllib_post_json,
         timeout_seconds: int = 240,
-        assembler: DialogueAssembler | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._clock = clock
         self._post_json = post_json
         self._timeout_seconds = timeout_seconds
-        self._assembler = assembler or DialogueAssembler()
+        self._assembler = assembler
 
     async def generate(
         self,
@@ -105,8 +84,6 @@ class QwenReportGenerator(ReportGenerator):
             raise ReportGeneratorError.connection(str(error)) from error
         except (KeyError, IndexError, json.JSONDecodeError, ValueError) as error:
             raise ReportGeneratorError.invalid_request(str(error)) from error
-        except Exception as error:
-            raise ReportGeneratorError.unexpected(str(error)) from error
         return self._to_report(transcript.recording_id.value, raw_report)
 
     def _messages(

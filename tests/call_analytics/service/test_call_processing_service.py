@@ -96,3 +96,19 @@ async def test_failed_stage_then_retry_recomputes_only_failed_stage() -> None:
     assert job.status is JobStatus.DONE
     assert failing.calls == 2
     assert await artifacts.load_report(RID) is not None
+
+
+async def test_unexpected_programming_error_is_not_recorded_as_stage_failure() -> None:
+    jobs, artifacts = InMemoryJobRepository(), InMemoryArtifactStore()
+    service = _service(
+        jobs,
+        artifacts,
+        transcriber=FailingTranscriber(
+            error=AssertionError("bug in adapter"),
+            then=NoopTranscriber(RID),
+        ),
+    )
+    await service.enqueue(_recording())
+
+    with pytest.raises(AssertionError, match="bug in adapter"):
+        await service.process(RID)

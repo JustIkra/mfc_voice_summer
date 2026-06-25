@@ -10,7 +10,7 @@ Naumen (WAV/GSM0610) → TRANSCRIBE (whisper) → DIARIZE (оператор/кл
 ## Слои
 
 - `src/domain/` — чистые `@dataclass(frozen=True, slots=True)`, ноль инфра-зависимостей. Модели звонка/транскрипта/word timestamps/диаризации/эмоций/синхронизированного диалога/отчёта + машина состояний `CallProcessingJob` (стадии `TRANSCRIBE→DIARIZE→EMOTION→REPORT`, статусы `PENDING/RUNNING/DONE/FAILED`, ретрай только упавшей стадии). Граница — `domain/__init__.py` (`__all__`).
-- `src/call_analytics/infra/ports/` — абстрактные порты (`abc.ABC`) с контрактными ошибками `<Port>Error(Kind)`: `CallRecordingSource`, `Transcriber`, `SpeakerDiarizer`, `EmotionRecognizer`, `ReportGenerator`, `ReportRenderer`, `JobRepository`, `ArtifactStore`, `ProcessingQueue`.
+- `src/call_analytics/service/ports/` — application/use-case порты (`abc.ABC`) с контрактными ошибками `<Port>Error(Kind)`: `CallRecordingSource`, `Transcriber`, `SpeakerDiarizer`, `EmotionRecognizer`, `ReportGenerator`, `ReportRenderer`, `JobRepository`, `ArtifactStore`, `ProcessingQueue`. Старый `src/call_analytics/infra/ports/` оставлен как compatibility re-export.
 - `src/call_analytics/infra/adapters/` — `noop/` (детерминированные compute-заглушки), `in_memory/` (репозитории/очередь для тестов), `local_dir/` (источник WAV, JSON/PDF artifacts, file-backed jobs), `model_api/` (persistent HTTP ASR/diarization/SER/Qwen adapters), `queue/` (RabbitMQ adapter), `reporting/` (ReportLab PDF renderer).
 - `src/call_analytics/service/` — `CallProcessingService` оркестрирует стадии поверх портов; `DialogueAssembler` собирает word-level реплики с speaker coverage и emotion episodes; `ProcessingWorker` читает `ProcessingQueue` и ack/reject делает только после результата job.
 - `src/call_analytics/bootstrap.py` — composition root для CLI/worker/future FastAPI lifespan: собирает local source/store/job repo, RabbitMQ queue, HTTP model adapters, Qwen report generator, PDF renderer.
@@ -18,7 +18,7 @@ Naumen (WAV/GSM0610) → TRANSCRIBE (whisper) → DIARIZE (оператор/кл
 
 ## Принципы
 
-Dependency inversion: `domain` ← `service` ← `adapters`; `service` не знает об адаптерах. Импорты — только с границ пакетов (`from domain import ...`, `from call_analytics.infra.ports import ...`). LLM получает не сырой transcript, а синхронизированный диалог с speaker coverage, ASR confidence и SER emotion episodes. Thinking у Qwen не отключается.
+Dependency inversion: `domain` ← `service`/`service.ports` ← `adapters`; `service` не знает об адаптерах. Импорты — только с границ пакетов (`from domain import ...`, `from call_analytics.service.ports import ...`). LLM получает не сырой transcript, а синхронизированный диалог с speaker coverage, ASR confidence и SER emotion episodes. Thinking у Qwen не отключается.
 
 ## Документы
 
