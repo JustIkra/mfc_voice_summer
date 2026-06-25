@@ -22,7 +22,15 @@ from call_analytics.service.ports import ProcessingMessage, ProcessingQueue
 from call_analytics.service.ports.application import RecordingInbox
 from call_analytics.service.workspace import PipelineWorkspace
 from call_analytics.web import create_app
-from domain import AudioBlob, CallRecording, ChannelLayout, Period, RecordingId
+from domain import (
+    AudioBlob,
+    CallRecording,
+    CallReport,
+    ChannelLayout,
+    Period,
+    RecordingId,
+    Satisfaction,
+)
 
 MSK = timezone(timedelta(hours=3))
 
@@ -184,3 +192,36 @@ def test_report_pdf_endpoint_returns_saved_artifact() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.content == b"%PDF-1.4 demo"
+
+
+def test_delete_recording_report_endpoint_clears_report_state() -> None:
+    client, _, artifacts = build_client()
+    asyncio.run(
+        artifacts.save_report(
+            CallReport(
+                recording_id=RecordingId("call-001"),
+                satisfaction=Satisfaction.NEUTRAL,
+                summary="summary",
+                key_points=(),
+                generated_at=datetime(2026, 6, 25, 8, 30, tzinfo=MSK),
+            )
+        )
+    )
+    asyncio.run(artifacts.save_report_pdf(RecordingId("call-001"), b"%PDF-1.4 demo"))
+
+    response = client.delete("/api/recordings/call-001/report")
+
+    assert response.status_code == 200
+    assert response.json()["job"] is None
+    assert client.get("/api/jobs/call-001/report").status_code == 404
+    assert client.get("/api/jobs/call-001/report.pdf").status_code == 404
+
+
+def test_overwrite_recording_report_endpoint_requeues_recording() -> None:
+    client, queue, _ = build_client()
+
+    response = client.post("/api/recordings/call-001/overwrite")
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "pending"
+    assert [item.value for item in queue.published] == ["call-001"]

@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from call_analytics.report_view import report_summary_rows
+from call_analytics.report_view import report_summary_rows, transcript_rows
 from call_analytics.service.ports import ReportRenderer, ReportRendererError
 from domain import CallReport, DiarizedTranscript, EmotionAnalysis, Transcript
 
@@ -113,17 +113,8 @@ class ReportLabReportRenderer(ReportRenderer):
                 ]
             )
         story.append(self._paragraph(Paragraph, "Транскрипт", heading))
-        for segment in transcript.segments:
-            story.append(
-                self._paragraph(
-                    Paragraph,
-                    (
-                        f"[{segment.span.start.total_seconds():.1f}-"
-                        f"{segment.span.end.total_seconds():.1f}] {segment.text}"
-                    ),
-                    body,
-                )
-            )
+        for row in transcript_rows(report, transcript, diarized):
+            story.append(self._paragraph(Paragraph, row, body))
         document.build(story)
         return buffer.getvalue()
 

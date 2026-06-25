@@ -45,6 +45,8 @@ async def test_local_artifact_store_persists_report_json_and_pdf(tmp_path) -> No
             client_emotions=("happy",),
             operator_emotions=("neutral",),
         ),
+        client_speaker="SPEAKER_01",
+        operator_speaker="SPEAKER_00",
     )
 
     await store.save_recording(
@@ -61,6 +63,8 @@ async def test_local_artifact_store_persists_report_json_and_pdf(tmp_path) -> No
 
     loaded_report = await store.load_report(RID)
     assert loaded_report is not None
+    assert loaded_report.client_speaker == "SPEAKER_01"
+    assert loaded_report.operator_speaker == "SPEAKER_00"
     assert loaded_report.question_resolved.value == "yes"
     assert loaded_report.client_satisfaction.score_1_5 == 5
     assert await store.load_report_pdf(RID) == b"%PDF-1.4"

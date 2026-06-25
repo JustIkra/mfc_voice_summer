@@ -80,6 +80,18 @@ async function runAction(action, recording) {
         method: "POST",
       });
       showToast("Повтор включён");
+    } else if (action === "delete-report") {
+      if (!confirm("Удалить отчёт и результаты обработки для этой записи?")) return;
+      await requestJson(`/api/recordings/${encodeURIComponent(recording.id)}/report`, {
+        method: "DELETE",
+      });
+      showToast("Отчёт удалён");
+    } else if (action === "overwrite") {
+      if (!confirm("Перезаписать отчёт и поставить запись в очередь заново?")) return;
+      await requestJson(`/api/recordings/${encodeURIComponent(recording.id)}/overwrite`, {
+        method: "POST",
+      });
+      showToast("Запись поставлена на перезапись");
     }
     await refresh();
   } catch (error) {
@@ -186,6 +198,7 @@ function renderDetails() {
     return;
   }
   const job = recording.job;
+  const canReplace = !job || isTerminalJob(job);
   detailsNode.innerHTML = `
     <div class="details-title">
       <div>
@@ -198,6 +211,8 @@ function renderDetails() {
     <div class="button-row">
       ${job ? "" : '<button class="action primary" type="button" data-action="enqueue">Поставить</button>'}
       ${job?.status === "failed" ? '<button class="action danger" type="button" data-action="retry">Повторить</button>' : ""}
+      ${canReplace && job ? '<button class="action danger" type="button" data-action="delete-report">Удалить отчёт</button>' : ""}
+      ${canReplace && job ? '<button class="action secondary" type="button" data-action="overwrite">Перезаписать</button>' : ""}
     </div>
     ${renderArtifacts(recording)}
     ${renderError(job)}

@@ -38,10 +38,14 @@ def test_call_report_contains_required_quality_fields() -> None:
             operator_emotions=("neutral",),
             evidence=("SER показывает angry на реплике клиента.",),
         ),
+        client_speaker="SPEAKER_01",
+        operator_speaker="SPEAKER_00",
         risks=("риск повторного обращения",),
         recommendations=("перезвонить клиенту",),
     )
 
+    assert report.client_speaker == "SPEAKER_01"
+    assert report.operator_speaker == "SPEAKER_00"
     assert report.question_resolved.value == "partial"
     assert report.client_satisfaction.score_1_5 == 2
     assert report.emotional_assessment.client_emotions == ("angry",)

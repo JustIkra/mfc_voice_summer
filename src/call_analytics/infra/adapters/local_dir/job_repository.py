@@ -28,6 +28,9 @@ class LocalJobRepository(JobRepository):
             return None
         return self._from_json(json.loads(path.read_text(encoding="utf-8")))
 
+    async def delete(self, job_id: str) -> None:
+        self._path(job_id).unlink(missing_ok=True)
+
     async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         if not self._directory.is_dir():
             return []

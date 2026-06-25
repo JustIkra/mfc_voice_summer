@@ -20,8 +20,20 @@ from call_analytics.infra.adapters.noop import (
 from call_analytics.service import CallProcessingService
 from call_analytics.service.ports import ProcessingMessage, ProcessingQueue
 from call_analytics.service.ports.application import RecordingInbox
-from call_analytics.service.workspace import PipelineWorkspace, RecordingNotFound
-from domain import AudioBlob, CallRecording, ChannelLayout, JobStage, Period, RecordingId
+from call_analytics.service.workspace import (
+    JobInProgress,
+    JobNotFound,
+    PipelineWorkspace,
+    RecordingNotFound,
+)
+from domain import (
+    AudioBlob,
+    CallRecording,
+    ChannelLayout,
+    JobStage,
+    Period,
+    RecordingId,
+)
 
 MSK = timezone(timedelta(hours=3))
 
@@ -162,6 +174,44 @@ async def test_process_recording_runs_pipeline_to_report() -> None:
 
     assert job.status.value == "done"
     assert report.summary
+
+
+async def test_delete_recording_report_removes_job_and_artifacts() -> None:
+    workspace, _, artifacts = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+    await workspace.process_recording(RecordingId("call-001"))
+    await artifacts.save_report_pdf(RecordingId("call-001"), b"%PDF-1.4")
+
+    item = await workspace.delete_recording_report(RecordingId("call-001"))
+
+    assert item.recording.id.value == "call-001"
+    assert item.job is None
+    assert await workspace.load_report(RecordingId("call-001")) is None
+    assert await workspace.load_report_pdf(RecordingId("call-001")) is None
+    with pytest.raises(JobNotFound):
+        await workspace.get_job("call-001")
+
+
+async def test_overwrite_recording_report_deletes_outputs_and_requeues() -> None:
+    workspace, queue, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+    await workspace.process_recording(RecordingId("call-001"))
+
+    job = await workspace.overwrite_recording_report(RecordingId("call-001"))
+
+    assert job.status.value == "pending"
+    assert job.completed_stages == frozenset()
+    assert [item.value for item in queue.published] == ["call-001", "call-001"]
+
+
+async def test_delete_recording_report_rejects_running_job() -> None:
+    workspace, _, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+    running = (await workspace.get_job("call-001")).start_stage(JobStage.TRANSCRIBE)
+    await workspace._jobs.save(running)
+
+    with pytest.raises(JobInProgress):
+        await workspace.delete_recording_report(RecordingId("call-001"))
 
 
 async def test_retry_job_publishes_message_for_worker() -> None:

@@ -30,15 +30,12 @@ from domain import (
 def extract_json_object(message: dict[str, Any]) -> dict[str, Any]:
     content = message.get("content")
     if not isinstance(content, str):
-        raise ValueError(
-            f"Qwen response does not contain final JSON fields={sorted(message)}"
-        )
+        raise ValueError(f"Qwen response does not contain final JSON fields={sorted(message)}")
     match = re.search(r"\{.*\}", content, flags=re.S)
     if not match:
-        raise ValueError(
-            f"Qwen response does not contain final JSON fields={sorted(message)}"
-        )
+        raise ValueError(f"Qwen response does not contain final JSON fields={sorted(message)}")
     return cast(dict[str, Any], json.loads(match.group(0)))
+
 
 class QwenReportGenerator(ReportGenerator):
     def __init__(
@@ -191,6 +188,8 @@ class QwenReportGenerator(ReportGenerator):
             summary=str(payload.get("summary", "")),
             key_points=tuple(str(item) for item in payload.get("key_points", ())),
             generated_at=self._clock(),
+            client_speaker=str(payload.get("client_speaker", "unknown")),
+            operator_speaker=str(payload.get("operator_speaker", "unknown")),
             question_resolved=QuestionResolution(
                 value=str(resolution_payload.get("value", "unknown")),
                 confidence=float(resolution_payload.get("confidence", 0.0)),

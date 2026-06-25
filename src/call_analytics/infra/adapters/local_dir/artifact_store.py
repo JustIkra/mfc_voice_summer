@@ -68,8 +68,7 @@ class LocalArtifactStore(ArtifactStore):
                 "language": transcript.language,
                 "full_text": transcript.full_text,
                 "segments": [
-                    self._transcript_segment_to_json(item)
-                    for item in transcript.segments
+                    self._transcript_segment_to_json(item) for item in transcript.segments
                 ],
             },
         )
@@ -84,8 +83,7 @@ class LocalArtifactStore(ArtifactStore):
             recording_id=recording_id,
             language=str(payload["language"]),
             segments=tuple(
-                self._transcript_segment_from_json(item)
-                for item in payload["segments"]
+                self._transcript_segment_from_json(item) for item in payload["segments"]
             ),
             full_text=str(payload["full_text"]),
         )
@@ -150,6 +148,16 @@ class LocalArtifactStore(ArtifactStore):
         if not path.is_file():
             return None
         return path.read_bytes()
+
+    async def delete_outputs(self, recording_id: RecordingId) -> None:
+        for directory, suffix in [
+            ("transcripts", ".transcript.json"),
+            ("diarization", ".diarization.json"),
+            ("emotions", ".emotion.json"),
+            ("reports", ".report.json"),
+            ("reports", ".pdf"),
+        ]:
+            self._artifact_path(directory, recording_id, suffix).unlink(missing_ok=True)
 
     def _artifact_path(self, directory: str, recording_id: RecordingId, suffix: str) -> Path:
         return self._root / directory / f"{recording_id.value}{suffix}"
@@ -251,6 +259,8 @@ class LocalArtifactStore(ArtifactStore):
             "summary": report.summary,
             "key_points": list(report.key_points),
             "generated_at": report.generated_at.isoformat(),
+            "client_speaker": report.client_speaker,
+            "operator_speaker": report.operator_speaker,
             "question_resolved": {
                 "value": report.question_resolved.value,
                 "confidence": report.question_resolved.confidence,
@@ -282,6 +292,8 @@ class LocalArtifactStore(ArtifactStore):
             summary=str(payload["summary"]),
             key_points=tuple(str(item) for item in payload.get("key_points", ())),
             generated_at=datetime.fromisoformat(str(payload["generated_at"])),
+            client_speaker=str(payload.get("client_speaker", "unknown")),
+            operator_speaker=str(payload.get("operator_speaker", "unknown")),
             question_resolved=QuestionResolution(
                 value=str(question["value"]),
                 confidence=float(question["confidence"]),

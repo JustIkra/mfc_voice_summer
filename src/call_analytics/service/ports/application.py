@@ -127,9 +127,7 @@ class SpeakerDiarizerError(Exception):
 
 class SpeakerDiarizer(ABC):
     @abstractmethod
-    async def diarize(
-        self, audio: AudioBlob, transcript: Transcript
-    ) -> DiarizedTranscript:
+    async def diarize(self, audio: AudioBlob, transcript: Transcript) -> DiarizedTranscript:
         """Привязать сегменты транскрипта к ролям говорящих."""
 
 
@@ -163,9 +161,7 @@ class EmotionRecognizerError(Exception):
 
 class EmotionRecognizer(ABC):
     @abstractmethod
-    async def recognize(
-        self, audio: AudioBlob, diarized: DiarizedTranscript
-    ) -> EmotionAnalysis:
+    async def recognize(self, audio: AudioBlob, diarized: DiarizedTranscript) -> EmotionAnalysis:
         """Определить эмоции для сегментов размеченного транскрипта."""
 
 
@@ -270,6 +266,10 @@ class JobRepository(ABC):
         """Прочитать job по идентификатору или `None`."""
 
     @abstractmethod
+    async def delete(self, job_id: str) -> None:
+        """Удалить job, если он существует."""
+
+    @abstractmethod
     async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         """Список job в указанном статусе."""
 
@@ -291,9 +291,7 @@ class ArtifactStore(ABC):
     async def save_diarization(self, diarized: DiarizedTranscript) -> None: ...
 
     @abstractmethod
-    async def load_diarization(
-        self, recording_id: RecordingId
-    ) -> DiarizedTranscript | None: ...
+    async def load_diarization(self, recording_id: RecordingId) -> DiarizedTranscript | None: ...
 
     @abstractmethod
     async def save_emotion(self, emotion: EmotionAnalysis) -> None: ...
@@ -312,6 +310,10 @@ class ArtifactStore(ABC):
 
     @abstractmethod
     async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None: ...
+
+    @abstractmethod
+    async def delete_outputs(self, recording_id: RecordingId) -> None:
+        """Delete derived pipeline artifacts while keeping source recordings intact."""
 
 
 class RecordingInbox(ABC):

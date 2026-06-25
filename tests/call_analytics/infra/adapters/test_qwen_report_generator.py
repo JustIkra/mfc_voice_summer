@@ -154,5 +154,7 @@ async def test_qwen_report_prompt_contains_dialogue_and_keeps_thinking_enabled()
     assert captured["payload"].get("reasoning_effort") is None
     assert captured["timeout"] == 600
     assert report.satisfaction is Satisfaction.SATISFIED
+    assert report.client_speaker == "SPEAKER_01"
+    assert report.operator_speaker == "SPEAKER_00"
     assert report.question_resolved.value == "yes"
     assert report.client_satisfaction.score_1_5 == 5

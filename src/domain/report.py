@@ -43,6 +43,8 @@ class CallReport:
     summary: str
     key_points: tuple[str, ...]
     generated_at: datetime
+    client_speaker: str = "unknown"
+    operator_speaker: str = "unknown"
     question_resolved: QuestionResolution = field(
         default_factory=lambda: QuestionResolution(
             value="unknown",

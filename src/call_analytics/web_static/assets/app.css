@@ -132,6 +132,12 @@ main {
   background: var(--signal);
 }
 
+.action.secondary {
+  border-color: rgba(36, 87, 255, 0.35);
+  color: var(--signal);
+  background: rgba(36, 87, 255, 0.08);
+}
+
 .action.danger {
   border-color: rgba(180, 35, 24, 0.35);
   color: var(--bad);

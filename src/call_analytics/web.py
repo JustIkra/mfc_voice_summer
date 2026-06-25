@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from call_analytics.bootstrap import build_application
 from call_analytics.report_view import report_to_public_json
 from call_analytics.service.workspace import (
+    JobInProgress,
     JobNotFound,
     PipelineWorkspace,
     RecordingNotFound,
@@ -103,6 +104,26 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
             job = await workspace().enqueue_recording(RecordingId(recording_id))
         except RecordingNotFound as error:
             raise HTTPException(status_code=404, detail="recording not found") from error
+        return _job_to_json(job)
+
+    @app.delete("/api/recordings/{recording_id}/report")
+    async def delete_recording_report(recording_id: str) -> dict[str, Any]:
+        try:
+            item = await workspace().delete_recording_report(RecordingId(recording_id))
+        except RecordingNotFound as error:
+            raise HTTPException(status_code=404, detail="recording not found") from error
+        except JobInProgress as error:
+            raise HTTPException(status_code=409, detail="recording is in progress") from error
+        return _recording_to_json(item.recording, item.job)
+
+    @app.post("/api/recordings/{recording_id}/overwrite", status_code=201)
+    async def overwrite_recording_report(recording_id: str) -> dict[str, Any]:
+        try:
+            job = await workspace().overwrite_recording_report(RecordingId(recording_id))
+        except RecordingNotFound as error:
+            raise HTTPException(status_code=404, detail="recording not found") from error
+        except JobInProgress as error:
+            raise HTTPException(status_code=409, detail="recording is in progress") from error
         return _job_to_json(job)
 
     @app.post("/api/jobs/{job_id}/retry")

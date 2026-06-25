@@ -27,9 +27,10 @@ class InMemoryJobRepository(JobRepository):
     async def get(self, job_id: str) -> CallProcessingJob | None:
         return self._jobs.get(job_id)
 
-    async def list_by_status(
-        self, status: JobStatus
-    ) -> Sequence[CallProcessingJob]:
+    async def delete(self, job_id: str) -> None:
+        self._jobs.pop(job_id, None)
+
+    async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         return [job for job in self._jobs.values() if job.status is status]
 
 
@@ -47,33 +48,25 @@ class InMemoryArtifactStore(ArtifactStore):
     async def save_recording(self, recording: CallRecording) -> None:
         self._recordings[recording.id.value] = recording
 
-    async def load_recording(
-        self, recording_id: RecordingId
-    ) -> CallRecording | None:
+    async def load_recording(self, recording_id: RecordingId) -> CallRecording | None:
         return self._recordings.get(recording_id.value)
 
     async def save_transcript(self, transcript: Transcript) -> None:
         self._transcripts[transcript.recording_id.value] = transcript
 
-    async def load_transcript(
-        self, recording_id: RecordingId
-    ) -> Transcript | None:
+    async def load_transcript(self, recording_id: RecordingId) -> Transcript | None:
         return self._transcripts.get(recording_id.value)
 
     async def save_diarization(self, diarized: DiarizedTranscript) -> None:
         self._diarizations[diarized.recording_id.value] = diarized
 
-    async def load_diarization(
-        self, recording_id: RecordingId
-    ) -> DiarizedTranscript | None:
+    async def load_diarization(self, recording_id: RecordingId) -> DiarizedTranscript | None:
         return self._diarizations.get(recording_id.value)
 
     async def save_emotion(self, emotion: EmotionAnalysis) -> None:
         self._emotions[emotion.recording_id.value] = emotion
 
-    async def load_emotion(
-        self, recording_id: RecordingId
-    ) -> EmotionAnalysis | None:
+    async def load_emotion(self, recording_id: RecordingId) -> EmotionAnalysis | None:
         return self._emotions.get(recording_id.value)
 
     async def save_report(self, report: CallReport) -> None:
@@ -87,6 +80,14 @@ class InMemoryArtifactStore(ArtifactStore):
 
     async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None:
         return self._report_pdfs.get(recording_id.value)
+
+    async def delete_outputs(self, recording_id: RecordingId) -> None:
+        key = recording_id.value
+        self._transcripts.pop(key, None)
+        self._diarizations.pop(key, None)
+        self._emotions.pop(key, None)
+        self._reports.pop(key, None)
+        self._report_pdfs.pop(key, None)
 
 
 __all__ = ["InMemoryArtifactStore", "InMemoryJobRepository"]
