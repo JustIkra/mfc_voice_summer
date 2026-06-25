@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from call_analytics.report_view import report_summary_rows
 from call_analytics.service.ports import ReportRenderer, ReportRendererError
 from domain import CallReport, DiarizedTranscript, EmotionAnalysis, Transcript
 
@@ -74,12 +75,7 @@ class ReportLabReportRenderer(ReportRenderer):
             self._paragraph(Paragraph, f"Отчёт по звонку: {report.recording_id.value}.wav", title),
             Spacer(1, 10),
         ]
-        rows = [
-            ("Решён ли вопрос", report.question_resolved.value),
-            ("Уверенность", report.question_resolved.confidence),
-            ("Удовлетворённость клиента", report.client_satisfaction.value),
-            ("Оценка 1-5", report.client_satisfaction.score_1_5),
-        ]
+        rows = report_summary_rows(report)
         table = Table(
             [
                 [

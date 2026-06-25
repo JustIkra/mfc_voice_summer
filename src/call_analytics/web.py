@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from call_analytics.bootstrap import build_application
+from call_analytics.report_view import report_to_public_json
 from call_analytics.service.workspace import (
     JobNotFound,
     PipelineWorkspace,
@@ -173,32 +174,7 @@ def _job_to_json(job: CallProcessingJob) -> dict[str, Any]:
 
 
 def _report_to_json(report: CallReport) -> dict[str, Any]:
-    return {
-        "recording_id": report.recording_id.value,
-        "satisfaction": report.satisfaction.name,
-        "summary": report.summary,
-        "key_points": list(report.key_points),
-        "generated_at": report.generated_at.isoformat(),
-        "question_resolved": {
-            "value": report.question_resolved.value,
-            "confidence": report.question_resolved.confidence,
-            "evidence": list(report.question_resolved.evidence),
-        },
-        "client_satisfaction": {
-            "value": report.client_satisfaction.value,
-            "score_1_5": report.client_satisfaction.score_1_5,
-            "confidence": report.client_satisfaction.confidence,
-            "evidence": list(report.client_satisfaction.evidence),
-        },
-        "emotional_assessment": {
-            "overall": report.emotional_assessment.overall,
-            "client_emotions": list(report.emotional_assessment.client_emotions),
-            "operator_emotions": list(report.emotional_assessment.operator_emotions),
-            "evidence": list(report.emotional_assessment.evidence),
-        },
-        "risks": list(report.risks),
-        "recommendations": list(report.recommendations),
-    }
+    return report_to_public_json(report)
 
 
 app = create_app()
