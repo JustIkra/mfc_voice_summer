@@ -11,6 +11,7 @@ const statusLabels = {
   done: "готово",
   failed: "ошибка",
 };
+const pageSizeOptions = [50, 100, 250];
 
 const state = {
   recordings: [],
@@ -19,9 +20,12 @@ const state = {
   liveJobId: null,
   liveStatus: "idle",
   searchQuery: "",
+  currentPage: 1,
+  pageSize: 50,
 };
 
 const recordingsNode = document.querySelector("#recordings");
+const paginationNode = document.querySelector("#pagination");
 const detailsNode = document.querySelector("#details");
 const toastNode = document.querySelector("#toast");
 const wavInput = document.querySelector("#wavInput");
@@ -33,6 +37,7 @@ document.querySelector("#uploadButton").addEventListener("click", () => wavInput
 wavInput.addEventListener("change", () => uploadSelectedFile());
 recordingSearch.addEventListener("input", () => {
   state.searchQuery = recordingSearch.value.trim().toLowerCase();
+  state.currentPage = 1;
   render();
 });
 
@@ -40,6 +45,26 @@ recordingsNode.addEventListener("click", (event) => {
   const button = event.target.closest("[data-recording-id]");
   if (!button) return;
   state.selectedId = button.dataset.recordingId;
+  render();
+});
+
+paginationNode.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-page-action]");
+  if (!button) return;
+  const pageCount = pageCountFor(visibleRecordings().length);
+  if (button.dataset.pageAction === "prev") {
+    state.currentPage = Math.max(1, state.currentPage - 1);
+  } else if (button.dataset.pageAction === "next") {
+    state.currentPage = Math.min(pageCount, state.currentPage + 1);
+  }
+  render();
+});
+
+paginationNode.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-page-size]");
+  if (!select) return;
+  state.pageSize = Number(select.value);
+  state.currentPage = 1;
   render();
 });
 
@@ -149,13 +174,15 @@ function render() {
   renderLiveStatus();
 
   const visible = visibleRecordings();
+  const page = paginatedRecordings(visible);
   if (state.recordings.length === 0) {
     recordingsNode.innerHTML = '<div class="empty">Загрузите запись для анализа.</div>';
   } else if (visible.length === 0) {
     recordingsNode.innerHTML = '<div class="empty">Ничего не найдено.</div>';
   } else {
-    recordingsNode.innerHTML = visible.map(renderRecording).join("");
+    recordingsNode.innerHTML = page.items.map(renderRecording).join("");
   }
+  renderPagination(visible.length, page);
   renderDetails();
   syncJobSocket();
 }
@@ -189,6 +216,53 @@ function visibleRecordings() {
       .toLowerCase();
     return haystack.includes(state.searchQuery);
   });
+}
+
+function paginatedRecordings(recordings) {
+  const totalPages = pageCountFor(recordings.length);
+  state.currentPage = Math.min(Math.max(state.currentPage, 1), totalPages);
+  const start = (state.currentPage - 1) * state.pageSize;
+  const end = start + state.pageSize;
+  return {
+    items: recordings.slice(start, end),
+    start,
+    end: Math.min(end, recordings.length),
+    totalPages,
+  };
+}
+
+function pageCountFor(total) {
+  return Math.max(1, Math.ceil(total / state.pageSize));
+}
+
+function renderPagination(total, page) {
+  if (total === 0) {
+    paginationNode.hidden = true;
+    paginationNode.innerHTML = "";
+    return;
+  }
+  paginationNode.hidden = false;
+  const from = page.start + 1;
+  const to = page.end;
+  paginationNode.innerHTML = `
+    <div class="pagination-range">Показаны ${from}-${to} из ${total}</div>
+    <div class="pagination-controls">
+      <label class="page-size">
+        <span>На странице</span>
+        <select data-page-size>
+          ${pageSizeOptions
+            .map(
+              (size) =>
+                `<option value="${size}" ${size === state.pageSize ? "selected" : ""}>${size}</option>`,
+            )
+            .join("")}
+        </select>
+      </label>
+      <button class="action secondary" type="button" data-page-action="prev" ${state.currentPage === 1 ? "disabled" : ""}>Назад</button>
+      <span class="page-count">${state.currentPage} / ${page.totalPages}</span>
+      <button class="action secondary" type="button" data-page-action="next" ${state.currentPage === page.totalPages ? "disabled" : ""}>Вперёд</button>
+    </div>
+  `;
 }
 
 function renderDetails() {

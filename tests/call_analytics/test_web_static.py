@@ -25,6 +25,19 @@ def test_recordings_list_has_search_control() -> None:
     assert "Ничего не найдено" in script
 
 
+def test_recordings_list_has_client_pagination() -> None:
+    html = Path("src/call_analytics/web_static/index.html").read_text(encoding="utf-8")
+    script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
+
+    assert 'id="pagination"' in html
+    assert "pageSize" in script
+    assert "currentPage" in script
+    assert "paginatedRecordings" in script
+    assert "renderPagination" in script
+    assert "state.currentPage = 1" in script
+    assert "Показаны" in script
+
+
 def test_app_js_subscribes_to_job_status_events_with_refresh_fallback() -> None:
     script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
 

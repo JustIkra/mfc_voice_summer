@@ -290,6 +290,54 @@ main {
   background: rgba(36, 87, 255, 0.07);
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.pagination[hidden] {
+  display: none;
+}
+
+.pagination-range,
+.page-count,
+.page-size {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.pagination-controls,
+.page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.page-size select {
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0 0.45rem;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+}
+
+.page-count {
+  min-width: 4.5rem;
+  text-align: center;
+}
+
+.action:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .recording-name {
   display: block;
   overflow-wrap: anywhere;
@@ -464,5 +512,34 @@ main {
   .search-box,
   .search-box input {
     width: 100%;
+  }
+
+  .pagination,
+  .pagination-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination {
+    align-items: flex-start;
+  }
+
+  .pagination-controls,
+  .page-size {
+    width: 100%;
+  }
+
+  .page-size {
+    justify-content: space-between;
+  }
+
+  .page-size select,
+  .pagination .action {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .page-count {
+    min-width: 0;
   }
 }
