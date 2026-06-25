@@ -16,8 +16,7 @@ services:
     image: mfc-voice-web:latest
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
       VOICE_ARTIFACTS_DIR: /data/reports
@@ -57,8 +56,7 @@ services:
     restart: unless-stopped
     command: python -m call_analytics.worker_app
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
       VOICE_ARTIFACTS_DIR: /data/reports
@@ -97,8 +95,7 @@ services:
     ipc: host
     shm_size: "16gb"
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       HF_HOME: /models/huggingface
       HUGGINGFACE_HUB_CACHE: /models/huggingface/hub
@@ -159,8 +156,7 @@ services:
     image: mfc-voice-model-api:latest
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       MODEL_SERVICE: asr
       MODEL_DEVICE: ${MODEL_DEVICE:-cuda}
@@ -193,8 +189,7 @@ services:
     image: mfc-voice-model-api:latest
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       MODEL_SERVICE: diarization
       MODEL_DEVICE: ${MODEL_DEVICE:-cuda}
@@ -227,8 +222,7 @@ services:
     image: mfc-voice-model-api:latest
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       MODEL_SERVICE: emotion
       MODEL_DEVICE: ${MODEL_DEVICE:-cuda}
