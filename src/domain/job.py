@@ -51,9 +51,7 @@ class CallProcessingJob:
     created_at: datetime
 
     @classmethod
-    def create(
-        cls, job_id: str, recording_id: RecordingId, now: datetime
-    ) -> CallProcessingJob:
+    def create(cls, job_id: str, recording_id: RecordingId, now: datetime) -> CallProcessingJob:
         return cls(
             id=job_id,
             recording_id=recording_id,
@@ -72,9 +70,7 @@ class CallProcessingJob:
 
     def start_stage(self, stage: JobStage) -> CallProcessingJob:
         if self.status is not JobStatus.PENDING:
-            raise InvalidJobTransition(
-                f"нельзя начать стадию из статуса {self.status.name}"
-            )
+            raise InvalidJobTransition(f"нельзя начать стадию из статуса {self.status.name}")
         if stage is not self.next_stage():
             raise InvalidJobTransition(f"стадия {stage.name} не является следующей")
         attempts = dict(self.attempts)
@@ -83,9 +79,7 @@ class CallProcessingJob:
 
     def complete_stage(self, stage: JobStage) -> CallProcessingJob:
         if self.status is not JobStatus.RUNNING:
-            raise InvalidJobTransition(
-                f"нельзя завершить стадию из статуса {self.status.name}"
-            )
+            raise InvalidJobTransition(f"нельзя завершить стадию из статуса {self.status.name}")
         if stage is not self.next_stage():
             raise InvalidJobTransition(f"завершается не текущая стадия {stage.name}")
         completed = self.completed_stages | {stage}
@@ -97,19 +91,22 @@ class CallProcessingJob:
             last_error=None,
         )
 
-    def fail_stage(
-        self, stage: JobStage, kind: str, message: str
-    ) -> CallProcessingJob:
+    def fail_stage(self, stage: JobStage, kind: str, message: str) -> CallProcessingJob:
         if self.status is not JobStatus.RUNNING:
-            raise InvalidJobTransition(
-                f"нельзя пометить ошибку из статуса {self.status.name}"
-            )
+            raise InvalidJobTransition(f"нельзя пометить ошибку из статуса {self.status.name}")
         return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
 
     def retry(self) -> CallProcessingJob:
         if self.status is not JobStatus.FAILED:
             raise InvalidJobTransition(
                 f"повтор возможен только из FAILED, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.PENDING, last_error=None)
+
+    def recover_interrupted(self) -> CallProcessingJob:
+        if self.status is not JobStatus.RUNNING:
+            raise InvalidJobTransition(
+                f"recovery возможен только из RUNNING, текущий {self.status.name}"
             )
         return replace(self, status=JobStatus.PENDING, last_error=None)
 

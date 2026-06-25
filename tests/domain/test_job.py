@@ -48,6 +48,16 @@ def test_cannot_complete_when_not_running() -> None:
         job.complete_stage(JobStage.TRANSCRIBE)
 
 
+def test_recover_interrupted_running_job_returns_to_pending_stage() -> None:
+    job = _job().start_stage(JobStage.TRANSCRIBE)
+
+    recovered = job.recover_interrupted()
+
+    assert recovered.status is JobStatus.PENDING
+    assert recovered.next_stage() is JobStage.TRANSCRIBE
+    assert recovered.attempts[JobStage.TRANSCRIBE] == 1
+
+
 def test_fail_then_retry_keeps_completed_and_reruns_failed_stage() -> None:
     job = _job()
     job = job.start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)

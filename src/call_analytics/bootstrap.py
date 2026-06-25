@@ -61,12 +61,8 @@ class AppSettings:
             emotion_url=os.getenv("VOICE_EMOTION_URL", "http://127.0.0.1:8103"),
             qwen_base_url=os.getenv("VOICE_QWEN_BASE_URL", "http://127.0.0.1:8000/v1"),
             qwen_model=os.getenv("VOICE_QWEN_MODEL", "qwen3.6-35b"),
-            qwen_report_timeout_seconds=int(
-                os.getenv("VOICE_QWEN_REPORT_TIMEOUT_SECONDS", "600")
-            ),
-            qwen_report_max_tokens=int(
-                os.getenv("VOICE_QWEN_REPORT_MAX_TOKENS", "8192")
-            ),
+            qwen_report_timeout_seconds=int(os.getenv("VOICE_QWEN_REPORT_TIMEOUT_SECONDS", "600")),
+            qwen_report_max_tokens=int(os.getenv("VOICE_QWEN_REPORT_MAX_TOKENS", "8192")),
             container_recordings_dir=os.getenv(
                 "VOICE_CONTAINER_RECORDINGS_DIR",
                 "/data/recordings",
@@ -138,6 +134,12 @@ def build_application(settings: AppSettings | None = None) -> Application:
         pipeline=pipeline,
         clock=lambda: datetime.now(MSK),
     )
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=pipeline,
+        jobs=jobs,
+        requeue_failed=False,
+    )
     return Application(
         settings=settings,
         source=source,
@@ -146,7 +148,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
         queue=queue,
         pipeline=pipeline,
         workspace=workspace,
-        worker=ProcessingWorker(queue=queue, pipeline=pipeline, requeue_failed=False),
+        worker=worker,
     )
 
 

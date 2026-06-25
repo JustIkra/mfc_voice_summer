@@ -13,6 +13,9 @@ async def run_worker() -> None:
     logging.basicConfig(level=os.getenv("VOICE_LOG_LEVEL", "INFO"))
     idle_sleep = float(os.getenv("VOICE_WORKER_IDLE_SLEEP_SECONDS", "1"))
     app = build_application()
+    recovered = await app.worker.recover_interrupted_jobs()
+    if recovered:
+        LOGGER.warning("recovered %s interrupted jobs", recovered)
     while True:
         try:
             processed = await app.worker.run_once()

@@ -16,7 +16,15 @@ from call_analytics.infra.adapters.noop import (
     NoopTranscriber,
 )
 from call_analytics.service import CallProcessingService, ProcessingWorker
-from domain import AudioBlob, CallRecording, ChannelLayout, JobStatus, RecordingId
+from domain import (
+    AudioBlob,
+    CallProcessingJob,
+    CallRecording,
+    ChannelLayout,
+    JobStage,
+    JobStatus,
+    RecordingId,
+)
 from tests.call_analytics.service.conftest import FakeRecordingSource
 
 pytestmark = pytest.mark.asyncio
@@ -41,7 +49,7 @@ async def test_worker_processes_queue_message_and_acknowledges_done_job() -> Non
         artifacts=artifacts,
         clock=lambda: NOW,
     )
-    worker = ProcessingWorker(queue=queue, pipeline=pipeline)
+    worker = ProcessingWorker(queue=queue, pipeline=pipeline, jobs=jobs)
     recording = CallRecording(
         id=RID,
         started_at=NOW,
@@ -59,3 +67,33 @@ async def test_worker_processes_queue_message_and_acknowledges_done_job() -> Non
     assert job.status is JobStatus.DONE
     assert queue.acked == (RID.value,)
     assert queue.rejected == ()
+
+
+async def test_worker_recovers_running_jobs_left_by_restart() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    pipeline = CallProcessingService(
+        source=FakeRecordingSource(
+            {RID.value: AudioBlob(data=b"x", codec="wav", layout=ChannelLayout.STEREO)}
+        ),
+        transcriber=NoopTranscriber(RID),
+        diarizer=NoopDiarizer(),
+        emotion_recognizer=NoopEmotionRecognizer(),
+        report_generator=NoopReportGenerator(generated_at=NOW),
+        jobs=jobs,
+        artifacts=InMemoryArtifactStore(),
+        clock=lambda: NOW,
+    )
+    running = CallProcessingJob.create(RID.value, RID, NOW).start_stage(JobStage.TRANSCRIBE)
+    await jobs.save(running)
+    worker = ProcessingWorker(queue=queue, pipeline=pipeline, jobs=jobs)
+
+    recovered_count = await worker.recover_interrupted_jobs()
+
+    job = await jobs.get(RID.value)
+    message = await queue.get()
+    assert recovered_count == 1
+    assert job is not None
+    assert job.status is JobStatus.PENDING
+    assert message is not None
+    assert message.recording_id == RID
