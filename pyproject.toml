@@ -5,11 +5,15 @@ description = "Пайплайн анализа звонков ИИ колл-це
 requires-python = ">=3.12"
 dependencies = [
     "aio-pika>=9.4",
+    "fastapi>=0.115",
+    "python-multipart>=0.0.20",
     "reportlab>=4.0",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "httpx2>=0.27",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.5",

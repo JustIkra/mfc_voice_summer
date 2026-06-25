@@ -7,6 +7,7 @@ from pathlib import Path
 
 from call_analytics.infra.adapters.local_dir import (
     LocalArtifactStore,
+    LocalDirectoryRecordingInbox,
     LocalDirectoryRecordingSource,
     LocalJobRepository,
 )
@@ -19,7 +20,12 @@ from call_analytics.infra.adapters.model_api import (
 )
 from call_analytics.infra.adapters.queue import RabbitMQProcessingQueue
 from call_analytics.infra.adapters.reporting import ReportLabReportRenderer
-from call_analytics.service import CallProcessingService, DialogueAssembler, ProcessingWorker
+from call_analytics.service import (
+    CallProcessingService,
+    DialogueAssembler,
+    PipelineWorkspace,
+    ProcessingWorker,
+)
 from call_analytics.service.ports import (
     ArtifactStore,
     CallRecordingSource,
@@ -39,6 +45,8 @@ class AppSettings:
     emotion_url: str = "http://127.0.0.1:8103"
     qwen_base_url: str = "http://127.0.0.1:8000/v1"
     qwen_model: str = "qwen3.6-35b"
+    qwen_report_timeout_seconds: int = 600
+    qwen_report_max_tokens: int = 8192
     container_recordings_dir: str = "/data/recordings"
     rabbitmq_url: str | None = None
     rabbitmq_queue_name: str = "voice.recordings"
@@ -53,6 +61,12 @@ class AppSettings:
             emotion_url=os.getenv("VOICE_EMOTION_URL", "http://127.0.0.1:8103"),
             qwen_base_url=os.getenv("VOICE_QWEN_BASE_URL", "http://127.0.0.1:8000/v1"),
             qwen_model=os.getenv("VOICE_QWEN_MODEL", "qwen3.6-35b"),
+            qwen_report_timeout_seconds=int(
+                os.getenv("VOICE_QWEN_REPORT_TIMEOUT_SECONDS", "600")
+            ),
+            qwen_report_max_tokens=int(
+                os.getenv("VOICE_QWEN_REPORT_MAX_TOKENS", "8192")
+            ),
             container_recordings_dir=os.getenv(
                 "VOICE_CONTAINER_RECORDINGS_DIR",
                 "/data/recordings",
@@ -70,12 +84,14 @@ class Application:
     artifacts: ArtifactStore
     queue: ProcessingQueue
     pipeline: CallProcessingService
+    workspace: PipelineWorkspace
     worker: ProcessingWorker
 
 
 def build_application(settings: AppSettings | None = None) -> Application:
     settings = settings or AppSettings.from_env()
     source = LocalDirectoryRecordingSource(settings.recordings_dir)
+    inbox = LocalDirectoryRecordingInbox(settings.recordings_dir)
     jobs = LocalJobRepository(settings.artifacts_dir)
     artifacts = LocalArtifactStore(settings.artifacts_dir)
     queue = RabbitMQProcessingQueue(
@@ -105,11 +121,22 @@ def build_application(settings: AppSettings | None = None) -> Application:
             model=settings.qwen_model,
             clock=lambda: datetime.now(MSK),
             assembler=DialogueAssembler(),
+            timeout_seconds=settings.qwen_report_timeout_seconds,
+            max_tokens=settings.qwen_report_max_tokens,
         ),
         jobs=jobs,
         artifacts=artifacts,
         clock=lambda: datetime.now(MSK),
         report_renderer=ReportLabReportRenderer(),
+    )
+    workspace = PipelineWorkspace(
+        source=source,
+        jobs=jobs,
+        artifacts=artifacts,
+        queue=queue,
+        inbox=inbox,
+        pipeline=pipeline,
+        clock=lambda: datetime.now(MSK),
     )
     return Application(
         settings=settings,
@@ -118,6 +145,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
         artifacts=artifacts,
         queue=queue,
         pipeline=pipeline,
+        workspace=workspace,
         worker=ProcessingWorker(queue=queue, pipeline=pipeline),
     )
 

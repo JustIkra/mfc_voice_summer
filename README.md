@@ -37,14 +37,23 @@ word timestamps, speaker coverage, ASR confidence и SER emotion episodes. Think
 ## Docker Services
 
 ```bash
-docker compose -f docker-compose.voice.yml up -d rabbitmq asr-api diarization-api emotion-api
+cp .env.example .env
+docker compose -f docker-compose.voice.yml up -d --build
 ```
 
-Compose использует `.recordings` как read-only mount `/data/recordings` внутри model API контейнеров.
-Кэш моделей хранится в `model-cache/` и не коммитится.
+Compose поднимает web-интерфейс, Nginx reverse proxy, RabbitMQ и три model API.
+Наружу публикуется один порт: `${VOICE_HTTP_PORT:-8080}` у `proxy`.
+Откройте `http://<host>:8080/`, чтобы увидеть список WAV, запустить обработку
+и открыть JSON/PDF отчёты. WAV можно загрузить через веб-интерфейс; файлы
+сохраняются в `.recordings`.
+
+Compose использует `.recordings` как read-only mount `/data/recordings` внутри
+web и model API контейнеров. Отчёты пишутся в `.reports`, кэш моделей хранится
+в `model-cache/`; эти каталоги не коммитятся.
 
 Qwen/vLLM поднимается отдельно как OpenAI-compatible endpoint. URL задаётся через
-`VOICE_QWEN_BASE_URL`, модель через `VOICE_QWEN_MODEL`.
+`VOICE_QWEN_BASE_URL`, модель через `VOICE_QWEN_MODEL`. Если Qwen работает на
+Docker host, используйте `http://host.docker.internal:8000/v1`.
 
 ## Environment
 
@@ -61,6 +70,7 @@ VOICE_QWEN_MODEL=qwen3.6-35b
 VOICE_CONTAINER_RECORDINGS_DIR=/data/recordings
 VOICE_RABBITMQ_URL=amqp://guest:guest@localhost/
 VOICE_RABBITMQ_QUEUE=voice.recordings
+VOICE_HTTP_PORT=8080
 ```
 
 Provider tokens, including `HF_TOKEN`, belong in local `.env`. `.env` is ignored by git.

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MFC Voice Pipeline</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">MFC Voice Summer</p>
+        <h1>Анализ записей звонков</h1>
+      </div>
+      <div class="toolbar">
+        <form class="upload-form" id="uploadForm">
+          <input
+            id="wavInput"
+            name="file"
+            type="file"
+            accept=".wav,audio/wav,audio/x-wav,audio/wave,audio/*"
+          />
+          <button class="action primary" type="button" id="uploadButton">Загрузить</button>
+        </form>
+        <button class="icon-button" id="refreshButton" type="button" title="Обновить">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="Сводка">
+        <div>
+          <span class="metric" id="totalCount">0</span>
+          <span class="label">записей</span>
+        </div>
+        <div>
+          <span class="metric" id="doneCount">0</span>
+          <span class="label">готово</span>
+        </div>
+        <div>
+          <span class="metric" id="failedCount">0</span>
+          <span class="label">с ошибкой</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="list-panel">
+          <div class="panel-header">
+            <h2>Записи</h2>
+            <span class="muted" id="lastUpdated"></span>
+          </div>
+          <div class="recordings" id="recordings"></div>
+        </div>
+
+        <aside class="details-panel" id="details">
+          <h2>Отчёт</h2>
+          <p class="muted">Выберите запись из списка.</p>
+        </aside>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" hidden></div>
+    <script src="/assets/app.js" type="module"></script>
+  </body>
+</html>

@@ -48,13 +48,15 @@ class QwenReportGenerator(ReportGenerator):
         clock: Callable[[], datetime],
         assembler: DialogueAssemblerPort,
         post_json: PostJson = urllib_post_json,
-        timeout_seconds: int = 240,
+        timeout_seconds: int = 600,
+        max_tokens: int = 8192,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._clock = clock
         self._post_json = post_json
         self._timeout_seconds = timeout_seconds
+        self._max_tokens = max_tokens
         self._assembler = assembler
 
     async def generate(
@@ -68,7 +70,7 @@ class QwenReportGenerator(ReportGenerator):
             "model": self._model,
             "messages": self._messages(dialogue, transcript.recording_id.value),
             "temperature": 0.1,
-            "max_tokens": 1800,
+            "max_tokens": self._max_tokens,
             "response_format": {"type": "json_object"},
         }
         try:

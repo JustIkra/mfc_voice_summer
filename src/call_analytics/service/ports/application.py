@@ -314,6 +314,12 @@ class ArtifactStore(ABC):
     async def load_report_pdf(self, recording_id: RecordingId) -> bytes | None: ...
 
 
+class RecordingInbox(ABC):
+    @abstractmethod
+    async def save_wav(self, filename: str, content: bytes) -> CallRecording:
+        """Persist an uploaded WAV file and return its recording metadata."""
+
+
 class ProcessingQueueError(Exception):
     class Kind(Enum):
         CONNECTION = auto()
@@ -374,6 +380,7 @@ __all__ = [
     "ProcessingMessage",
     "ProcessingQueue",
     "ProcessingQueueError",
+    "RecordingInbox",
     "ReportGenerator",
     "ReportGeneratorError",
     "ReportRenderer",

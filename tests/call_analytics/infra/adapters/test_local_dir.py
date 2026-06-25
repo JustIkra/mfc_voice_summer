@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from call_analytics.infra.adapters.local_dir import LocalDirectoryRecordingSource
+from call_analytics.infra.adapters.local_dir import (
+    LocalDirectoryRecordingInbox,
+    LocalDirectoryRecordingSource,
+)
 from call_analytics.infra.ports import CallRecordingSourceError, Period
 from domain import ChannelLayout, RecordingId
 
@@ -83,3 +86,30 @@ async def test_fetch_audio_missing_is_not_found(tmp_path: Path) -> None:
     with pytest.raises(CallRecordingSourceError) as exc:
         await source.fetch_audio(RecordingId("nope"))
     assert exc.value.kind is CallRecordingSourceError.Kind.NOT_FOUND
+
+
+async def test_recording_inbox_saves_uploaded_wav(tmp_path: Path) -> None:
+    uploaded = tmp_path / "source.wav"
+    _make_wav(uploaded, nchannels=1)
+    inbox = LocalDirectoryRecordingInbox(tmp_path)
+
+    recording = await inbox.save_wav("../new-call.wav", uploaded.read_bytes())
+
+    assert recording.id.value == "new-call"
+    assert recording.metadata["filename"] == "new-call.wav"
+    assert (tmp_path / "new-call.wav").is_file()
+    assert not (tmp_path.parent / "new-call.wav").exists()
+
+
+async def test_recording_inbox_does_not_overwrite_existing_file(tmp_path: Path) -> None:
+    existing = tmp_path / "call.wav"
+    _make_wav(existing, nchannels=1, frames=8000)
+    incoming = tmp_path / "incoming.wav"
+    _make_wav(incoming, nchannels=1, frames=16000)
+    inbox = LocalDirectoryRecordingInbox(tmp_path)
+
+    recording = await inbox.save_wav("call.wav", incoming.read_bytes())
+
+    assert recording.id.value == "call-1"
+    assert (tmp_path / "call.wav").read_bytes() == existing.read_bytes()
+    assert (tmp_path / "call-1.wav").is_file()
