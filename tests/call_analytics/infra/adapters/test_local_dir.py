@@ -58,6 +58,21 @@ async def test_list_recordings_reads_header_and_name(tmp_path: Path) -> None:
     assert stereo.started_at == datetime.fromtimestamp(1751280101.328447, MSK)
 
 
+async def test_list_recordings_reads_nested_audio_directories(tmp_path: Path) -> None:
+    nested = tmp_path / "2026-03" / f"{MONO_NAME}.wav"
+    nested.parent.mkdir()
+    _make_wav(nested, nchannels=1)
+    source = LocalDirectoryRecordingSource(tmp_path)
+
+    recordings = await source.list_recordings(_wide_period())
+    recording = recordings[0]
+    blob = await source.fetch_audio(recording.id)
+
+    assert recording.id.value != MONO_NAME
+    assert recording.metadata["filename"] == f"2026-03/{MONO_NAME}.wav"
+    assert blob.data == nested.read_bytes()
+
+
 async def test_period_filter_excludes_outside(tmp_path: Path) -> None:
     _make_wav(tmp_path / f"{MONO_NAME}.wav", nchannels=1)
     source = LocalDirectoryRecordingSource(tmp_path)

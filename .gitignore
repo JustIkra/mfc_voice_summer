@@ -9,5 +9,6 @@ __pycache__/
 .memory-base
 .recordings/
 .reports/
+.staging/
 .playwright-mcp/
 model-cache/

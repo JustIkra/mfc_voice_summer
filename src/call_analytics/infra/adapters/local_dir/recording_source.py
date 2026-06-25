@@ -43,7 +43,12 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
         return recordings
 
     async def fetch_audio(self, recording_id: RecordingId) -> AudioBlob:
-        path = self._directory / f"{recording_id.value}.wav"
+        try:
+            path = self._path_for_recording_id(recording_id)
+        except ValueError as error:
+            raise CallRecordingSourceError.not_found(
+                f"идентификатор записи {recording_id.value} некорректен"
+            ) from error
         if not path.is_file():
             raise CallRecordingSourceError.not_found(f"файл записи {path} не найден")
         layout = self._layout(path)
@@ -55,20 +60,20 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
 
     def _wav_files(self) -> list[Path]:
         try:
-            return [p for p in self._directory.iterdir() if p.suffix.lower() == ".wav"]
+            return [p for p in self._directory.rglob("*") if p.suffix.lower() == ".wav"]
         except OSError as error:
             raise CallRecordingSourceError.unexpected(str(error)) from error
 
     def _to_recording(self, path: Path) -> CallRecording:
         nchannels, duration = self._wav_meta(path)
         return CallRecording(
-            id=RecordingId(path.stem),
+            id=self._recording_id(path),
             started_at=self._started_at(path),
             duration=duration,
             channel_layout=ChannelLayout.STEREO
             if nchannels == 2
             else ChannelLayout.MONO,
-            metadata={"filename": path.name},
+            metadata={"filename": self._display_name(path)},
         )
 
     def _layout(self, path: Path) -> ChannelLayout:
@@ -98,6 +103,22 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
                 f"{stamp.group(1)}{stamp.group(2)}", "%Y%m%d%H%M%S"
             ).replace(tzinfo=MSK)
         return datetime.fromtimestamp(path.stat().st_mtime, MSK)
+
+    def _recording_id(self, path: Path) -> RecordingId:
+        if path.parent == self._directory:
+            return RecordingId(path.stem)
+        relative = path.relative_to(self._directory).with_suffix("").as_posix()
+        return RecordingId(f"rel-{relative.encode('utf-8').hex()}")
+
+    def _path_for_recording_id(self, recording_id: RecordingId) -> Path:
+        value = recording_id.value
+        if value.startswith("rel-"):
+            relative = bytes.fromhex(value.removeprefix("rel-")).decode("utf-8")
+            return self._directory / f"{relative}.wav"
+        return self._directory / f"{value}.wav"
+
+    def _display_name(self, path: Path) -> str:
+        return path.relative_to(self._directory).as_posix()
 
 
 __all__ = ["LocalDirectoryRecordingSource"]

@@ -8,6 +8,7 @@ __pycache__
 .env
 .recordings
 .reports
+.staging
 model-cache
 dist
 build

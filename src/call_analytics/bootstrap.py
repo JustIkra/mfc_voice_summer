@@ -40,6 +40,7 @@ MSK = timezone(timedelta(hours=3))
 class AppSettings:
     recordings_dir: Path = Path(".recordings")
     artifacts_dir: Path = Path(".reports")
+    staging_dir: Path = Path(".staging")
     asr_url: str = "http://127.0.0.1:8101"
     diarization_url: str = "http://127.0.0.1:8102"
     emotion_url: str = "http://127.0.0.1:8103"
@@ -48,6 +49,7 @@ class AppSettings:
     qwen_report_timeout_seconds: int = 600
     qwen_report_max_tokens: int = 8192
     container_recordings_dir: str = "/data/recordings"
+    container_staging_dir: str = "/data/staging"
     rabbitmq_url: str | None = None
     rabbitmq_queue_name: str = "voice.recordings"
 
@@ -56,6 +58,7 @@ class AppSettings:
         return cls(
             recordings_dir=Path(os.getenv("VOICE_RECORDINGS_DIR", ".recordings")),
             artifacts_dir=Path(os.getenv("VOICE_ARTIFACTS_DIR", ".reports")),
+            staging_dir=Path(os.getenv("VOICE_STAGING_DIR", ".staging")),
             asr_url=os.getenv("VOICE_ASR_URL", "http://127.0.0.1:8101"),
             diarization_url=os.getenv("VOICE_DIARIZATION_URL", "http://127.0.0.1:8102"),
             emotion_url=os.getenv("VOICE_EMOTION_URL", "http://127.0.0.1:8103"),
@@ -66,6 +69,10 @@ class AppSettings:
             container_recordings_dir=os.getenv(
                 "VOICE_CONTAINER_RECORDINGS_DIR",
                 "/data/recordings",
+            ),
+            container_staging_dir=os.getenv(
+                "VOICE_CONTAINER_STAGING_DIR",
+                "/data/staging",
             ),
             rabbitmq_url=os.getenv("VOICE_RABBITMQ_URL") or None,
             rabbitmq_queue_name=os.getenv("VOICE_RABBITMQ_QUEUE", "voice.recordings"),
@@ -95,8 +102,8 @@ def build_application(settings: AppSettings | None = None) -> Application:
         queue_name=settings.rabbitmq_queue_name,
     )
     audio_stager = MountedDirectoryAudioStager(
-        host_directory=settings.recordings_dir,
-        model_directory=settings.container_recordings_dir,
+        host_directory=settings.staging_dir,
+        model_directory=settings.container_staging_dir,
     )
     pipeline = CallProcessingService(
         source=source,

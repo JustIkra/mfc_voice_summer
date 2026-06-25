@@ -21,17 +21,20 @@ services:
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
       VOICE_ARTIFACTS_DIR: /data/reports
+      VOICE_STAGING_DIR: /data/staging
       VOICE_ASR_URL: http://asr-api:8100
       VOICE_DIARIZATION_URL: http://diarization-api:8100
       VOICE_EMOTION_URL: http://emotion-api:8100
       VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
       VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
       VOICE_CONTAINER_RECORDINGS_DIR: /data/recordings
+      VOICE_CONTAINER_STAGING_DIR: /data/staging
       VOICE_QWEN_BASE_URL: ${VOICE_QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
       VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
     volumes:
       - ./.recordings:/data/recordings
       - ./.reports:/data/reports
+      - ./.staging:/data/staging
     expose:
       - "8000"
     extra_hosts:
@@ -59,18 +62,21 @@ services:
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
       VOICE_ARTIFACTS_DIR: /data/reports
+      VOICE_STAGING_DIR: /data/staging
       VOICE_ASR_URL: http://asr-api:8100
       VOICE_DIARIZATION_URL: http://diarization-api:8100
       VOICE_EMOTION_URL: http://emotion-api:8100
       VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
       VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
       VOICE_CONTAINER_RECORDINGS_DIR: /data/recordings
+      VOICE_CONTAINER_STAGING_DIR: /data/staging
       VOICE_QWEN_BASE_URL: ${VOICE_QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
       VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
       VOICE_WORKER_IDLE_SLEEP_SECONDS: ${VOICE_WORKER_IDLE_SLEEP_SECONDS:-1}
     volumes:
       - ./.recordings:/data/recordings
       - ./.reports:/data/reports
+      - ./.staging:/data/staging
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -166,6 +172,7 @@ services:
       HF_HUB_DISABLE_XET: "1"
     volumes:
       - ./.recordings:/data/recordings:ro
+      - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:
       - "8100"
@@ -199,6 +206,7 @@ services:
       HF_HUB_DISABLE_XET: "1"
     volumes:
       - ./.recordings:/data/recordings:ro
+      - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:
       - "8100"
@@ -232,6 +240,7 @@ services:
       HF_HUB_DISABLE_XET: "1"
     volumes:
       - ./.recordings:/data/recordings:ro
+      - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:
       - "8100"

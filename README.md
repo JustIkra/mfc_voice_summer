@@ -62,12 +62,14 @@ Docker host, используйте `http://host.docker.internal:8000/v1`.
 ```bash
 VOICE_RECORDINGS_DIR=.recordings
 VOICE_ARTIFACTS_DIR=.reports
+VOICE_STAGING_DIR=.staging
 VOICE_ASR_URL=http://127.0.0.1:8101
 VOICE_DIARIZATION_URL=http://127.0.0.1:8102
 VOICE_EMOTION_URL=http://127.0.0.1:8103
 VOICE_QWEN_BASE_URL=http://127.0.0.1:8000/v1
 VOICE_QWEN_MODEL=qwen3.6-35b
 VOICE_CONTAINER_RECORDINGS_DIR=/data/recordings
+VOICE_CONTAINER_STAGING_DIR=/data/staging
 VOICE_RABBITMQ_URL=amqp://guest:guest@localhost/
 VOICE_RABBITMQ_QUEUE=voice.recordings
 VOICE_HTTP_PORT=8080

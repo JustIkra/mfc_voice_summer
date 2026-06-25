@@ -22,6 +22,8 @@ def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) ->
         qwen_base_url="http://qwen:8000/v1",
         qwen_model="qwen3.6-35b",
         container_recordings_dir="/data/recordings",
+        staging_dir=tmp_path / "staging",
+        container_staging_dir="/data/staging",
         rabbitmq_url="amqp://guest:guest@rabbitmq/",
     )
 
@@ -39,9 +41,12 @@ def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) ->
 def test_settings_from_env_uses_local_defaults(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("VOICE_RECORDINGS_DIR", str(tmp_path / "input"))
     monkeypatch.setenv("VOICE_ARTIFACTS_DIR", str(tmp_path / "out"))
+    monkeypatch.setenv("VOICE_STAGING_DIR", str(tmp_path / "stage"))
 
     settings = AppSettings.from_env()
 
     assert settings.recordings_dir == Path(tmp_path / "input")
     assert settings.artifacts_dir == Path(tmp_path / "out")
+    assert settings.staging_dir == Path(tmp_path / "stage")
+    assert settings.container_staging_dir == "/data/staging"
     assert settings.asr_url == "http://127.0.0.1:8101"
