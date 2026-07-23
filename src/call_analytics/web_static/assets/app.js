@@ -10,7 +10,16 @@ const statusLabels = {
   running: "в работе",
   done: "готово",
   failed: "ошибка",
+  canceled: "отменено",
 };
+const statusFilterOptions = [
+  ["all", "Все"],
+  ["failed", "Ошибки"],
+  ["pending", "В очереди"],
+  ["running", "В работе"],
+  ["done", "Готово"],
+  ["not-started", "Без запуска"],
+];
 const pageSizeOptions = [50, 100, 250];
 
 const state = {
@@ -20,6 +29,7 @@ const state = {
   liveJobId: null,
   liveStatus: "idle",
   searchQuery: "",
+  statusFilter: "all",
   currentPage: 1,
   pageSize: 50,
 };
@@ -31,6 +41,7 @@ const toastNode = document.querySelector("#toast");
 const wavInput = document.querySelector("#wavInput");
 const liveStatusNode = document.querySelector("#liveStatus");
 const recordingSearch = document.querySelector("#recordingSearch");
+const statusFiltersNode = document.querySelector("#statusFilters");
 
 document.querySelector("#refreshButton").addEventListener("click", () => refresh());
 document.querySelector("#uploadButton").addEventListener("click", () => wavInput.click());
@@ -38,6 +49,16 @@ wavInput.addEventListener("change", () => uploadSelectedFile());
 recordingSearch.addEventListener("input", () => {
   state.searchQuery = recordingSearch.value.trim().toLowerCase();
   state.currentPage = 1;
+  syncSelectionToVisible();
+  render();
+});
+
+statusFiltersNode.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-status-filter]");
+  if (!button) return;
+  state.statusFilter = button.dataset.statusFilter;
+  state.currentPage = 1;
+  syncSelectionToVisible();
   render();
 });
 
@@ -79,12 +100,7 @@ detailsNode.addEventListener("click", async (event) => {
 async function refresh() {
   try {
     state.recordings = await requestJson("/api/recordings");
-    if (!state.selectedId && state.recordings.length > 0) {
-      state.selectedId = state.recordings[0].id;
-    }
-    if (!state.recordings.some((item) => item.id === state.selectedId)) {
-      state.selectedId = state.recordings[0]?.id ?? null;
-    }
+    syncSelectionToVisible();
     render();
   } catch (error) {
     recordingsNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
@@ -105,6 +121,17 @@ async function runAction(action, recording) {
         method: "POST",
       });
       showToast("Повтор включён");
+    } else if (action === "requeue" && job?.status === "pending") {
+      await requestJson(`/api/jobs/${encodeURIComponent(job.id)}/requeue`, {
+        method: "POST",
+      });
+      showToast("Запись повторно отправлена в очередь");
+    } else if (action === "cancel" && job?.status === "pending") {
+      if (!confirm("Удалить запись из очереди обработки?")) return;
+      await requestJson(`/api/jobs/${encodeURIComponent(job.id)}/cancel`, {
+        method: "POST",
+      });
+      showToast("Запись удалена из очереди");
     } else if (action === "delete-report") {
       if (!confirm("Удалить отчёт и результаты обработки для этой записи?")) return;
       await requestJson(`/api/recordings/${encodeURIComponent(recording.id)}/report`, {
@@ -161,6 +188,7 @@ async function requestJson(url, options = {}) {
 }
 
 function render() {
+  syncSelectionToVisible();
   const done = state.recordings.filter((item) => item.job?.status === "done").length;
   const failed = state.recordings.filter((item) => item.job?.status === "failed").length;
   document.querySelector("#totalCount").textContent = String(state.recordings.length);
@@ -172,6 +200,7 @@ function render() {
     second: "2-digit",
   });
   renderLiveStatus();
+  renderStatusFilters();
 
   const visible = visibleRecordings();
   const page = paginatedRecordings(visible);
@@ -203,8 +232,9 @@ function renderRecording(recording) {
 }
 
 function visibleRecordings() {
-  if (!state.searchQuery) return state.recordings;
   return state.recordings.filter((recording) => {
+    if (!matchesStatus(recording)) return false;
+    if (!state.searchQuery) return true;
     const jobStatus = statusLabels[recording.job?.status] ?? "не начато";
     const haystack = [
       recording.id,
@@ -216,6 +246,44 @@ function visibleRecordings() {
       .toLowerCase();
     return haystack.includes(state.searchQuery);
   });
+}
+
+function matchesStatus(recording) {
+  if (state.statusFilter === "all") return true;
+  if (state.statusFilter === "not-started") {
+    return !recording.job || recording.job.status === "canceled";
+  }
+  return recording.job?.status === state.statusFilter;
+}
+
+function statusCounts() {
+  const counts = Object.fromEntries(statusFilterOptions.map(([value]) => [value, 0]));
+  counts.all = state.recordings.length;
+  for (const recording of state.recordings) {
+    if (!recording.job || recording.job.status === "canceled") {
+      counts["not-started"] += 1;
+    } else if (Object.hasOwn(counts, recording.job.status)) {
+      counts[recording.job.status] += 1;
+    }
+  }
+  return counts;
+}
+
+function renderStatusFilters() {
+  const counts = statusCounts();
+  statusFiltersNode.innerHTML = statusFilterOptions
+    .map(([value, label]) => {
+      const active = value === state.statusFilter;
+      return `<button class="status-filter" type="button" data-status-filter="${value}" aria-pressed="${active}"><span>${label}</span><strong>${counts[value]}</strong></button>`;
+    })
+    .join("");
+}
+
+function syncSelectionToVisible() {
+  const visible = visibleRecordings();
+  if (!visible.some((item) => item.id === state.selectedId)) {
+    state.selectedId = visible[0]?.id ?? null;
+  }
 }
 
 function paginatedRecordings(recordings) {
@@ -272,7 +340,7 @@ function renderDetails() {
     return;
   }
   const job = recording.job;
-  const canReplace = !job || isTerminalJob(job);
+  const canReplace = job && ["done", "failed"].includes(job.status);
   detailsNode.innerHTML = `
     <div class="details-title">
       <div>
@@ -284,7 +352,10 @@ function renderDetails() {
     ${renderStages(job)}
     <div class="button-row">
       ${job ? "" : '<button class="action primary" type="button" data-action="enqueue">Поставить</button>'}
+      ${job?.status === "canceled" ? '<button class="action primary" type="button" data-action="enqueue">Поставить</button>' : ""}
       ${job?.status === "failed" ? '<button class="action danger" type="button" data-action="retry">Повторить</button>' : ""}
+      ${job?.status === "pending" ? '<button class="action secondary" type="button" data-action="requeue">Повторить очередь</button>' : ""}
+      ${job?.status === "pending" ? '<button class="action danger" type="button" data-action="cancel">Удалить из очереди</button>' : ""}
       ${canReplace && job ? '<button class="action danger" type="button" data-action="delete-report">Удалить отчёт</button>' : ""}
       ${canReplace && job ? '<button class="action secondary" type="button" data-action="overwrite">Перезаписать</button>' : ""}
     </div>
@@ -302,7 +373,9 @@ function renderStages(job) {
         .map((stage) => {
           const classes = ["stage"];
           if (completed.has(stage)) classes.push("done");
-          if (next === stage && job?.status !== "failed") classes.push("current");
+          if (next === stage && ["pending", "running"].includes(job?.status)) {
+            classes.push("current");
+          }
           if (next === stage && job?.status === "failed") classes.push("failed");
           return `<span class="${classes.join(" ")}" title="${stageLabels[stage]}"></span>`;
         })
@@ -398,7 +471,7 @@ function updateJobSnapshot(job) {
 }
 
 function isTerminalJob(job) {
-  return job.status === "done" || job.status === "failed";
+  return ["done", "failed", "canceled"].includes(job.status);
 }
 
 function jobEventsUrl(jobId) {

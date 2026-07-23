@@ -38,6 +38,30 @@ def test_recordings_list_has_client_pagination() -> None:
     assert "Показаны" in script
 
 
+def test_recordings_list_has_status_filters() -> None:
+    html = Path("src/call_analytics/web_static/index.html").read_text(encoding="utf-8")
+    script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
+
+    assert 'id="statusFilters"' in html
+    for value in ("all", "failed", "pending", "running", "done", "not-started"):
+        assert f'["{value}",' in script
+    assert "statusFilter" in script
+    assert "renderStatusFilters" in script
+    assert "function render() {\n  syncSelectionToVisible();" in script
+    assert 'aria-pressed="${active}"' in script
+
+
+def test_pending_and_canceled_jobs_have_queue_actions() -> None:
+    script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
+
+    assert 'data-action="requeue"' in script
+    assert 'data-action="cancel"' in script
+    assert "/requeue" in script
+    assert "/cancel" in script
+    assert 'job?.status === "canceled"' in script
+    assert "отменено" in script
+
+
 def test_app_js_subscribes_to_job_status_events_with_refresh_fallback() -> None:
     script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
 

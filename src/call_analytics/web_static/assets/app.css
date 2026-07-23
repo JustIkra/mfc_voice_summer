@@ -196,6 +196,49 @@ main {
   gap: 0.65rem;
 }
 
+.status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 99rem;
+  padding: 0.25rem 0.65rem;
+  color: var(--muted);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.status-filter:hover {
+  border-color: rgba(36, 87, 255, 0.45);
+  color: var(--ink);
+}
+
+.status-filter[aria-pressed="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+  background: rgba(36, 87, 255, 0.08);
+}
+
+.status-filter strong {
+  min-width: 1.35rem;
+  border-radius: 99rem;
+  padding: 0.1rem 0.35rem;
+  color: inherit;
+  background: rgba(102, 113, 127, 0.1);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
 .search-box {
   display: inline-flex;
 }
@@ -408,6 +451,11 @@ main {
   background: rgba(154, 106, 0, 0.12);
 }
 
+.status.canceled {
+  color: var(--muted);
+  background: #e5eaf0;
+}
+
 .details-panel {
   position: sticky;
   top: 1rem;
@@ -512,6 +560,15 @@ main {
   .search-box,
   .search-box input {
     width: 100%;
+  }
+
+  .status-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .status-filter {
+    flex: 0 0 auto;
   }
 
   .pagination,
