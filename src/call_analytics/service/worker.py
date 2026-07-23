@@ -35,7 +35,7 @@ class ProcessingWorker:
         except Exception:
             await self._queue.reject(message, requeue=self._requeue_failed)
             raise
-        if job.status is JobStatus.DONE:
+        if job.status in {JobStatus.DONE, JobStatus.CANCELED}:
             await self._queue.ack(message)
         else:
             await self._queue.reject(message, requeue=self._requeue_failed)

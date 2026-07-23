@@ -124,6 +124,16 @@ class CallProcessingService(CallProcessingPipeline):
         await self._jobs.save(job)
         return job
 
+    async def cancel(self, job_id: str) -> CallProcessingJob:
+        job = (await self._require_job(job_id)).cancel()
+        await self._jobs.save(job)
+        return job
+
+    async def resume(self, job_id: str) -> CallProcessingJob:
+        job = (await self._require_job(job_id)).resume()
+        await self._jobs.save(job)
+        return job
+
     async def _execute(self, stage: JobStage, recording_id: RecordingId) -> None:
         if stage is JobStage.TRANSCRIBE:
             audio = await self._fetch_audio(recording_id)

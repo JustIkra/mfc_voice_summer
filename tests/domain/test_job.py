@@ -79,3 +79,26 @@ def test_fail_then_retry_keeps_completed_and_reruns_failed_stage() -> None:
 def test_retry_only_from_failed() -> None:
     with pytest.raises(InvalidJobTransition):
         _job().retry()
+
+
+def test_pending_job_can_be_canceled_and_resumed() -> None:
+    canceled = _job().cancel()
+
+    assert canceled.status is JobStatus.CANCELED
+    assert canceled.next_stage() is JobStage.TRANSCRIBE
+
+    resumed = canceled.resume()
+    assert resumed.status is JobStatus.PENDING
+    assert resumed.completed_stages == canceled.completed_stages
+
+
+def test_only_pending_job_can_be_canceled() -> None:
+    running = _job().start_stage(JobStage.TRANSCRIBE)
+
+    with pytest.raises(InvalidJobTransition):
+        running.cancel()
+
+
+def test_only_canceled_job_can_be_resumed() -> None:
+    with pytest.raises(InvalidJobTransition):
+        _job().resume()

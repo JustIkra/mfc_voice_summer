@@ -24,5 +24,13 @@ class CallProcessingPipeline(ABC):
     async def retry(self, job_id: str) -> CallProcessingJob:
         """Сбросить упавшую стадию в PENDING для повтора."""
 
+    @abstractmethod
+    async def cancel(self, job_id: str) -> CallProcessingJob:
+        """Отменить ожидающую job."""
+
+    @abstractmethod
+    async def resume(self, job_id: str) -> CallProcessingJob:
+        """Вернуть отменённую job в ожидание."""
+
 
 __all__ = ["CallProcessingPipeline"]

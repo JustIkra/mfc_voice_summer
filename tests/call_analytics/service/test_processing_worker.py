@@ -47,6 +47,12 @@ class FailingPipeline(CallProcessingPipeline):
     async def retry(self, job_id: str) -> CallProcessingJob:
         raise AssertionError("retry is not used")
 
+    async def cancel(self, job_id: str) -> CallProcessingJob:
+        raise AssertionError("cancel is not used")
+
+    async def resume(self, job_id: str) -> CallProcessingJob:
+        raise AssertionError("resume is not used")
+
 
 async def test_worker_processes_queue_message_and_acknowledges_done_job() -> None:
     queue = InMemoryProcessingQueue()
@@ -129,3 +135,37 @@ async def test_worker_recovers_running_jobs_left_by_restart() -> None:
     assert job.status is JobStatus.PENDING
     assert message is not None
     assert message.recording_id == RID
+
+
+async def test_worker_acknowledges_canceled_job_without_processing_stages() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    artifacts = InMemoryArtifactStore()
+    pipeline = CallProcessingService(
+        source=FakeRecordingSource(
+            {RID.value: AudioBlob(data=b"x", codec="wav", layout=ChannelLayout.STEREO)}
+        ),
+        transcriber=NoopTranscriber(RID),
+        diarizer=NoopDiarizer(),
+        emotion_recognizer=NoopEmotionRecognizer(),
+        report_generator=NoopReportGenerator(generated_at=NOW),
+        jobs=jobs,
+        artifacts=artifacts,
+        clock=lambda: NOW,
+    )
+    recording = CallRecording(
+        id=RID,
+        started_at=NOW,
+        duration=timedelta(minutes=1),
+        channel_layout=ChannelLayout.STEREO,
+    )
+    job = await pipeline.enqueue(recording)
+    await pipeline.cancel(job.id)
+    await queue.publish(RID)
+
+    processed = await ProcessingWorker(queue, pipeline, jobs).run_once()
+
+    assert processed is True
+    assert queue.acked == (RID.value,)
+    assert queue.rejected == ()
+    assert await artifacts.load_transcript(RID) is None

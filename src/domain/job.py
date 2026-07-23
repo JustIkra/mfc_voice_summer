@@ -29,6 +29,7 @@ class JobStatus(Enum):
     RUNNING = "running"
     DONE = "done"
     FAILED = "failed"
+    CANCELED = "canceled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +101,20 @@ class CallProcessingJob:
         if self.status is not JobStatus.FAILED:
             raise InvalidJobTransition(
                 f"повтор возможен только из FAILED, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.PENDING, last_error=None)
+
+    def cancel(self) -> CallProcessingJob:
+        if self.status is not JobStatus.PENDING:
+            raise InvalidJobTransition(
+                f"отмена возможна только из PENDING, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.CANCELED)
+
+    def resume(self) -> CallProcessingJob:
+        if self.status is not JobStatus.CANCELED:
+            raise InvalidJobTransition(
+                f"возврат в очередь возможен только из CANCELED, текущий {self.status.name}"
             )
         return replace(self, status=JobStatus.PENDING, last_error=None)
 
