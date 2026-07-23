@@ -27,6 +27,12 @@ class JobNotFound(Exception):
         super().__init__(f"job {job_id} not found")
 
 
+class JobQueueConflict(Exception):
+    def __init__(self, job_id: str, status: JobStatus) -> None:
+        self.status = status
+        super().__init__(f"job {job_id} has status {status.value}")
+
+
 class RecordingUploadUnavailable(Exception):
     pass
 
@@ -77,7 +83,12 @@ class PipelineWorkspace:
     async def enqueue_recording(self, recording_id: RecordingId) -> CallProcessingJob:
         recording = await self._find_recording(recording_id)
         existing = await self._jobs.get(recording_id.value)
-        job = existing or await self._pipeline.enqueue(recording)
+        if existing is None:
+            job = await self._pipeline.enqueue(recording)
+        elif existing.status is JobStatus.CANCELED:
+            job = await self._pipeline.resume(existing.id)
+        else:
+            job = existing
         await self._queue.publish(recording_id)
         return job
 
@@ -110,6 +121,19 @@ class PipelineWorkspace:
             raise JobNotFound(job_id) from error
         await self._queue.publish(job.recording_id)
         return job
+
+    async def requeue_pending_job(self, job_id: str) -> CallProcessingJob:
+        job = await self.get_job(job_id)
+        if job.status is not JobStatus.PENDING:
+            raise JobQueueConflict(job_id, job.status)
+        await self._queue.publish(job.recording_id)
+        return job
+
+    async def cancel_pending_job(self, job_id: str) -> CallProcessingJob:
+        job = await self.get_job(job_id)
+        if job.status is not JobStatus.PENDING:
+            raise JobQueueConflict(job_id, job.status)
+        return await self._pipeline.cancel(job_id)
 
     async def delete_recording_report(self, recording_id: RecordingId) -> RecordingWorkspaceItem:
         recording = await self._find_recording(recording_id)
@@ -150,6 +174,7 @@ class PipelineWorkspace:
 __all__ = [
     "JobInProgress",
     "JobNotFound",
+    "JobQueueConflict",
     "PipelineWorkspace",
     "RecordingNotFound",
     "RecordingUploadUnavailable",

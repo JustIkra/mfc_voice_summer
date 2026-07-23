@@ -23,6 +23,7 @@ from call_analytics.service.ports.application import RecordingInbox
 from call_analytics.service.workspace import (
     JobInProgress,
     JobNotFound,
+    JobQueueConflict,
     PipelineWorkspace,
     RecordingNotFound,
 )
@@ -31,6 +32,7 @@ from domain import (
     CallRecording,
     ChannelLayout,
     JobStage,
+    JobStatus,
     Period,
     RecordingId,
 )
@@ -225,6 +227,39 @@ async def test_retry_job_publishes_message_for_worker() -> None:
 
     assert job.status.value == "pending"
     assert [item.value for item in queue.published] == ["call-001", "call-001"]
+
+
+async def test_requeue_pending_job_publishes_another_message() -> None:
+    workspace, queue, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+
+    job = await workspace.requeue_pending_job("call-001")
+
+    assert job.status is JobStatus.PENDING
+    assert [item.value for item in queue.published] == ["call-001", "call-001"]
+
+
+async def test_cancel_pending_job_and_enqueue_again() -> None:
+    workspace, queue, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+
+    canceled = await workspace.cancel_pending_job("call-001")
+    resumed = await workspace.enqueue_recording(RecordingId("call-001"))
+
+    assert canceled.status is JobStatus.CANCELED
+    assert resumed.status is JobStatus.PENDING
+    assert [item.value for item in queue.published] == ["call-001", "call-001"]
+
+
+async def test_requeue_and_cancel_reject_non_pending_job() -> None:
+    workspace, _, _ = build_workspace()
+    await workspace.enqueue_recording(RecordingId("call-001"))
+    await workspace.process_recording(RecordingId("call-001"))
+
+    with pytest.raises(JobQueueConflict):
+        await workspace.requeue_pending_job("call-001")
+    with pytest.raises(JobQueueConflict):
+        await workspace.cancel_pending_job("call-001")
 
 
 def test_report_pdf_returns_bytes_from_artifact_store() -> None:

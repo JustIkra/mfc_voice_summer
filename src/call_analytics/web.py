@@ -15,6 +15,7 @@ from call_analytics.report_view import report_to_public_json
 from call_analytics.service.workspace import (
     JobInProgress,
     JobNotFound,
+    JobQueueConflict,
     PipelineWorkspace,
     RecordingNotFound,
     RecordingUploadUnavailable,
@@ -132,6 +133,24 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
             return _job_to_json(await workspace().retry_job(job_id))
         except JobNotFound as error:
             raise HTTPException(status_code=404, detail="job not found") from error
+
+    @app.post("/api/jobs/{job_id}/requeue")
+    async def requeue_pending_job(job_id: str) -> dict[str, Any]:
+        try:
+            return _job_to_json(await workspace().requeue_pending_job(job_id))
+        except JobNotFound as error:
+            raise HTTPException(status_code=404, detail="job not found") from error
+        except JobQueueConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post("/api/jobs/{job_id}/cancel")
+    async def cancel_pending_job(job_id: str) -> dict[str, Any]:
+        try:
+            return _job_to_json(await workspace().cancel_pending_job(job_id))
+        except JobNotFound as error:
+            raise HTTPException(status_code=404, detail="job not found") from error
+        except JobQueueConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.get("/api/jobs/{job_id}/report")
     async def get_report(job_id: str) -> dict[str, Any]:

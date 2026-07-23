@@ -225,3 +225,26 @@ def test_overwrite_recording_report_endpoint_requeues_recording() -> None:
     assert response.status_code == 201
     assert response.json()["status"] == "pending"
     assert [item.value for item in queue.published] == ["call-001"]
+
+
+def test_pending_job_can_be_requeued_and_canceled() -> None:
+    client, queue, _ = build_client()
+    client.post("/api/recordings/call-001/jobs")
+
+    requeued = client.post("/api/jobs/call-001/requeue")
+    canceled = client.post("/api/jobs/call-001/cancel")
+
+    assert requeued.status_code == 200
+    assert requeued.json()["status"] == "pending"
+    assert canceled.status_code == 200
+    assert canceled.json()["status"] == "canceled"
+    assert [item.value for item in queue.published] == ["call-001", "call-001"]
+
+
+def test_queue_actions_return_conflict_after_cancel() -> None:
+    client, _, _ = build_client()
+    client.post("/api/recordings/call-001/jobs")
+    client.post("/api/jobs/call-001/cancel")
+
+    assert client.post("/api/jobs/call-001/requeue").status_code == 409
+    assert client.post("/api/jobs/call-001/cancel").status_code == 409
