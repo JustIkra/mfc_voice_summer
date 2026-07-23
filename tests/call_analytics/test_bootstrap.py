@@ -15,6 +15,7 @@ from call_analytics.service import CallProcessingService, ProcessingWorker
 def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) -> None:
     settings = AppSettings(
         recordings_dir=tmp_path / "recordings",
+        uploads_dir=tmp_path / "recordings" / "uploads",
         artifacts_dir=tmp_path / "artifacts",
         asr_url="http://asr:8100",
         diarization_url="http://diarization:8100",
@@ -40,12 +41,14 @@ def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) ->
 
 def test_settings_from_env_uses_local_defaults(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("VOICE_RECORDINGS_DIR", str(tmp_path / "input"))
+    monkeypatch.setenv("VOICE_UPLOADS_DIR", str(tmp_path / "input" / "uploads"))
     monkeypatch.setenv("VOICE_ARTIFACTS_DIR", str(tmp_path / "out"))
     monkeypatch.setenv("VOICE_STAGING_DIR", str(tmp_path / "stage"))
 
     settings = AppSettings.from_env()
 
     assert settings.recordings_dir == Path(tmp_path / "input")
+    assert settings.uploads_dir == tmp_path / "input" / "uploads"
     assert settings.artifacts_dir == Path(tmp_path / "out")
     assert settings.staging_dir == Path(tmp_path / "stage")
     assert settings.container_staging_dir == "/data/staging"

@@ -19,6 +19,7 @@ services:
       - .env
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
+      VOICE_UPLOADS_DIR: /data/recordings/uploads
       VOICE_ARTIFACTS_DIR: /data/reports
       VOICE_STAGING_DIR: /data/staging
       VOICE_ASR_URL: http://asr-api:8100
@@ -32,6 +33,7 @@ services:
       VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
     volumes:
       - ./.recordings:/data/recordings
+      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads
       - ./.reports:/data/reports
       - ./.staging:/data/staging
     expose:
@@ -59,6 +61,7 @@ services:
       - .env
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
+      VOICE_UPLOADS_DIR: /data/recordings/uploads
       VOICE_ARTIFACTS_DIR: /data/reports
       VOICE_STAGING_DIR: /data/staging
       VOICE_ASR_URL: http://asr-api:8100
@@ -73,6 +76,7 @@ services:
       VOICE_WORKER_IDLE_SLEEP_SECONDS: ${VOICE_WORKER_IDLE_SLEEP_SECONDS:-1}
     volumes:
       - ./.recordings:/data/recordings
+      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads:ro
       - ./.reports:/data/reports
       - ./.staging:/data/staging
     extra_hosts:

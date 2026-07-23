@@ -39,6 +39,7 @@ MSK = timezone(timedelta(hours=3))
 @dataclass(frozen=True, slots=True)
 class AppSettings:
     recordings_dir: Path = Path(".recordings")
+    uploads_dir: Path = Path(".recordings/uploads")
     artifacts_dir: Path = Path(".reports")
     staging_dir: Path = Path(".staging")
     asr_url: str = "http://127.0.0.1:8101"
@@ -57,6 +58,7 @@ class AppSettings:
     def from_env(cls) -> AppSettings:
         return cls(
             recordings_dir=Path(os.getenv("VOICE_RECORDINGS_DIR", ".recordings")),
+            uploads_dir=Path(os.getenv("VOICE_UPLOADS_DIR", ".recordings/uploads")),
             artifacts_dir=Path(os.getenv("VOICE_ARTIFACTS_DIR", ".reports")),
             staging_dir=Path(os.getenv("VOICE_STAGING_DIR", ".staging")),
             asr_url=os.getenv("VOICE_ASR_URL", "http://127.0.0.1:8101"),
@@ -94,7 +96,10 @@ class Application:
 def build_application(settings: AppSettings | None = None) -> Application:
     settings = settings or AppSettings.from_env()
     source = LocalDirectoryRecordingSource(settings.recordings_dir)
-    inbox = LocalDirectoryRecordingInbox(settings.recordings_dir)
+    inbox = LocalDirectoryRecordingInbox(
+        settings.uploads_dir,
+        recording_root=settings.recordings_dir,
+    )
     jobs = LocalJobRepository(settings.artifacts_dir)
     artifacts = LocalArtifactStore(settings.artifacts_dir)
     queue = RabbitMQProcessingQueue(

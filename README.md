@@ -30,6 +30,7 @@ word timestamps, speaker coverage, ASR confidence и SER emotion episodes. Think
 По умолчанию:
 
 - input recordings: `.recordings/*.wav`
+- recordings uploaded from the web: `.recordings/uploads/*.wav`
 - artifacts/reports: `.reports/`
 
 Финальные PDF/JSON отчёты привязаны к stem исходного WAV-файла.
@@ -44,12 +45,15 @@ docker compose -f docker-compose.voice.yml up -d --build
 Compose поднимает web-интерфейс, Nginx reverse proxy, RabbitMQ и три model API.
 Наружу публикуется один порт: `${VOICE_HTTP_PORT:-8080}` у `proxy`.
 Откройте `http://<host>:8080/`, чтобы увидеть список WAV, запустить обработку
-и открыть JSON/PDF отчёты. WAV можно загрузить через веб-интерфейс; файлы
-сохраняются в `.recordings`.
+и открыть JSON/PDF отчёты. WAV можно загрузить через веб-интерфейс; отдельный
+host-каталог загрузок задаётся через `VOICE_UPLOADS_HOST_DIR` и по умолчанию
+равен `.uploads`.
 
-Compose использует `.recordings` как read-only mount `/data/recordings` внутри
-web и model API контейнеров. Отчёты пишутся в `.reports`, кэш моделей хранится
-в `model-cache/`; эти каталоги не коммитятся.
+В production Compose архив `/media/audio` подключается в web, worker и model API
+только для чтения. Каталог загрузок подключается поверх
+`/data/recordings/uploads`: web получает доступ на запись, worker — только на
+чтение. Отчёты пишутся в `.reports`, кэш моделей хранится в `model-cache/`;
+эти каталоги не коммитятся.
 
 Qwen/vLLM поднимается отдельно как OpenAI-compatible endpoint. URL задаётся через
 `VOICE_QWEN_BASE_URL`, модель через `VOICE_QWEN_MODEL`. Если Qwen работает на
@@ -61,6 +65,8 @@ Docker host, используйте `http://host.docker.internal:8000/v1`.
 
 ```bash
 VOICE_RECORDINGS_DIR=.recordings
+VOICE_UPLOADS_DIR=.recordings/uploads
+VOICE_UPLOADS_HOST_DIR=.uploads
 VOICE_ARTIFACTS_DIR=.reports
 VOICE_STAGING_DIR=.staging
 VOICE_ASR_URL=http://127.0.0.1:8101

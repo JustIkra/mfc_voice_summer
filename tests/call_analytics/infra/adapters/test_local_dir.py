@@ -166,3 +166,21 @@ async def test_recording_inbox_does_not_overwrite_existing_file(tmp_path: Path) 
     assert recording.id.value == "call-1"
     assert (tmp_path / "call.wav").read_bytes() == existing.read_bytes()
     assert (tmp_path / "call-1.wav").is_file()
+
+
+async def test_recording_inbox_uses_recording_root_for_nested_upload_id(
+    tmp_path: Path,
+) -> None:
+    recordings = tmp_path / "recordings"
+    uploads = recordings / "uploads"
+    source_wav = tmp_path / "source.wav"
+    _make_wav(source_wav, nchannels=1)
+    inbox = LocalDirectoryRecordingInbox(uploads, recording_root=recordings)
+
+    recording = await inbox.save_wav("new-call.wav", source_wav.read_bytes())
+    source = LocalDirectoryRecordingSource(recordings)
+    blob = await source.fetch_audio(recording.id)
+
+    assert recording.id.value.startswith("rel-")
+    assert recording.metadata["filename"] == "uploads/new-call.wav"
+    assert blob.data == source_wav.read_bytes()

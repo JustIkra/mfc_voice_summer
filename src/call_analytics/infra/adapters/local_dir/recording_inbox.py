@@ -16,19 +16,21 @@ _SAFE_STEM_RE = re.compile(r"[^A-Za-z0-9А-Яа-я._-]+")
 
 
 class LocalDirectoryRecordingInbox(RecordingInbox):
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, recording_root: Path | None = None) -> None:
         self._directory = directory
+        self._recording_root = recording_root or directory
 
     async def save_wav(self, filename: str, content: bytes) -> CallRecording:
         self._directory.mkdir(parents=True, exist_ok=True)
         safe_name = self._safe_name(filename)
         temporary = self._temporary_path(safe_name)
-        source = LocalDirectoryRecordingSource(self._directory)
+        validation_source = LocalDirectoryRecordingSource(self._directory)
+        recording_source = LocalDirectoryRecordingSource(self._recording_root)
         try:
             temporary.write_bytes(content)
-            source._to_recording(temporary)
+            validation_source._to_recording(temporary)
             target = self._link_to_next_available_path(temporary, safe_name)
-            return source._to_recording(target)
+            return recording_source._to_recording(target)
         finally:
             temporary.unlink(missing_ok=True)
 

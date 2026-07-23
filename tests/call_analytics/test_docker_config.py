@@ -21,3 +21,29 @@ def test_voice_model_api_services_build_local_image() -> None:
 
         assert service["image"] == "mfc-voice-model-api:latest"
         assert service["build"]["context"] == "./docker/voice-model-api"
+
+
+def test_upload_mount_is_writable_only_in_web() -> None:
+    compose = yaml.safe_load(Path("docker-compose.voice.yml").read_text(encoding="utf-8"))
+    web_volumes = compose["services"]["web"]["volumes"]
+    worker_volumes = compose["services"]["worker"]["volumes"]
+
+    assert "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads" in web_volumes
+    assert (
+        "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads:ro"
+        in worker_volumes
+    )
+    assert (
+        compose["services"]["web"]["environment"]["VOICE_UPLOADS_DIR"]
+        == "/data/recordings/uploads"
+    )
+
+
+def test_prod_recording_archive_remains_read_only() -> None:
+    compose = yaml.safe_load(Path("docker-compose.prod.yml").read_text(encoding="utf-8"))
+
+    for service_name in ("web", "worker"):
+        assert (
+            "/media/audio:/data/recordings:ro"
+            in compose["services"][service_name]["volumes"]
+        )
