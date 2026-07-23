@@ -62,6 +62,14 @@ def test_pending_and_canceled_jobs_have_queue_actions() -> None:
     assert "отменено" in script
 
 
+def test_status_filter_strip_does_not_expand_mobile_layout() -> None:
+    stylesheet = Path("src/call_analytics/web_static/assets/app.css").read_text(encoding="utf-8")
+
+    assert ".workspace > *," in stylesheet
+    assert ".summary > * {" in stylesheet
+    assert "min-width: 0;" in stylesheet
+
+
 def test_app_js_subscribes_to_job_status_events_with_refresh_fallback() -> None:
     script = Path("src/call_analytics/web_static/assets/app.js").read_text(encoding="utf-8")
 
