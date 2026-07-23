@@ -11,4 +11,5 @@ __pycache__/
 .reports/
 .staging/
 .playwright-mcp/
+.worktrees/
 model-cache/
