@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from call_analytics.infra.adapters.local_dir import (
+    CompositeRecordingSource,
     LocalArtifactStore,
     LocalDirectoryRecordingInbox,
     LocalDirectoryRecordingSource,
@@ -95,10 +96,16 @@ class Application:
 
 def build_application(settings: AppSettings | None = None) -> Application:
     settings = settings or AppSettings.from_env()
-    source = LocalDirectoryRecordingSource(settings.recordings_dir)
+    archive_source = LocalDirectoryRecordingSource(settings.recordings_dir)
+    uploads_source = LocalDirectoryRecordingSource(
+        settings.uploads_dir,
+        id_prefix="upload-",
+        display_prefix="uploads/",
+    )
+    source = CompositeRecordingSource(archive_source, uploads_source)
     inbox = LocalDirectoryRecordingInbox(
         settings.uploads_dir,
-        recording_root=settings.recordings_dir,
+        recording_source=uploads_source,
     )
     jobs = LocalJobRepository(settings.artifacts_dir)
     artifacts = LocalArtifactStore(settings.artifacts_dir)

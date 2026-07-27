@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from call_analytics.infra.adapters.local_dir import (
+    CompositeRecordingSource,
     LocalDirectoryRecordingInbox,
     LocalDirectoryRecordingSource,
 )
@@ -182,5 +183,53 @@ async def test_recording_inbox_uses_recording_root_for_nested_upload_id(
     blob = await source.fetch_audio(recording.id)
 
     assert recording.id.value.startswith("rel-")
+    assert recording.metadata["filename"] == "uploads/new-call.wav"
+    assert blob.data == source_wav.read_bytes()
+
+
+async def test_composite_source_keeps_archive_ids_and_namespaces_uploads(
+    tmp_path: Path,
+) -> None:
+    archive_path = tmp_path / "archive" / "call.wav"
+    upload_path = tmp_path / "uploads" / "call.wav"
+    archive_path.parent.mkdir()
+    upload_path.parent.mkdir()
+    _make_wav(archive_path, nchannels=1, frames=8000)
+    _make_wav(upload_path, nchannels=2, frames=16000)
+    archive = LocalDirectoryRecordingSource(archive_path.parent)
+    uploads = LocalDirectoryRecordingSource(
+        upload_path.parent,
+        id_prefix="upload-",
+        display_prefix="uploads/",
+    )
+    source = CompositeRecordingSource(archive, uploads)
+
+    recordings = await source.list_recordings(_wide_period())
+    by_id = {recording.id.value: recording for recording in recordings}
+
+    assert set(by_id) == {"call", "upload-call"}
+    assert by_id["call"].metadata["filename"] == "call.wav"
+    assert by_id["upload-call"].metadata["filename"] == "uploads/call.wav"
+    assert (await source.fetch_audio(RecordingId("call"))).data == archive_path.read_bytes()
+    assert (
+        await source.fetch_audio(RecordingId("upload-call"))
+    ).data == upload_path.read_bytes()
+
+
+async def test_recording_inbox_uses_namespaced_upload_source(tmp_path: Path) -> None:
+    uploads = tmp_path / "uploads"
+    source_wav = tmp_path / "source.wav"
+    _make_wav(source_wav, nchannels=1)
+    source = LocalDirectoryRecordingSource(
+        uploads,
+        id_prefix="upload-",
+        display_prefix="uploads/",
+    )
+    inbox = LocalDirectoryRecordingInbox(uploads, recording_source=source)
+
+    recording = await inbox.save_wav("new-call.wav", source_wav.read_bytes())
+    blob = await source.fetch_audio(recording.id)
+
+    assert recording.id.value == "upload-new-call"
     assert recording.metadata["filename"] == "uploads/new-call.wav"
     assert blob.data == source_wav.read_bytes()

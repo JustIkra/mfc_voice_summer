@@ -28,8 +28,15 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
     каналов (моно/стерео) определяет заголовок WAV.
     """
 
-    def __init__(self, directory: Path) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        id_prefix: str = "",
+        display_prefix: str = "",
+    ) -> None:
         self._directory = directory
+        self._id_prefix = id_prefix
+        self._display_prefix = display_prefix
 
     async def list_recordings(self, period: Period) -> Sequence[CallRecording]:
         recordings: list[CallRecording] = []
@@ -106,19 +113,26 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
 
     def _recording_id(self, path: Path) -> RecordingId:
         if path.parent == self._directory:
-            return RecordingId(path.stem)
-        relative = path.relative_to(self._directory).with_suffix("").as_posix()
-        return RecordingId(f"rel-{relative.encode('utf-8').hex()}")
+            value = path.stem
+        else:
+            relative = path.relative_to(self._directory).with_suffix("").as_posix()
+            value = f"rel-{relative.encode('utf-8').hex()}"
+        return RecordingId(f"{self._id_prefix}{value}")
 
     def _path_for_recording_id(self, recording_id: RecordingId) -> Path:
         value = recording_id.value
+        if self._id_prefix:
+            if not value.startswith(self._id_prefix):
+                raise ValueError("идентификатор относится к другому источнику")
+            value = value.removeprefix(self._id_prefix)
         if value.startswith("rel-"):
             relative = bytes.fromhex(value.removeprefix("rel-")).decode("utf-8")
             return self._directory / f"{relative}.wav"
         return self._directory / f"{value}.wav"
 
     def _display_name(self, path: Path) -> str:
-        return path.relative_to(self._directory).as_posix()
+        relative = path.relative_to(self._directory).as_posix()
+        return f"{self._display_prefix}{relative}"
 
 
 __all__ = ["LocalDirectoryRecordingSource"]

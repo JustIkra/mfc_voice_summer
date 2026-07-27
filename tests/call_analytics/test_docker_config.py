@@ -28,14 +28,14 @@ def test_upload_mount_is_writable_only_in_web() -> None:
     web_volumes = compose["services"]["web"]["volumes"]
     worker_volumes = compose["services"]["worker"]["volumes"]
 
-    assert "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads" in web_volumes
+    assert "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads" in web_volumes
     assert (
-        "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads:ro"
+        "${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads:ro"
         in worker_volumes
     )
     assert (
         compose["services"]["web"]["environment"]["VOICE_UPLOADS_DIR"]
-        == "/data/recordings/uploads"
+        == "/data/uploads"
     )
 
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from call_analytics.infra.adapters.local_dir.artifact_store import LocalArtifactStore
+from call_analytics.infra.adapters.local_dir.composite_recording_source import (
+    CompositeRecordingSource,
+)
 from call_analytics.infra.adapters.local_dir.job_repository import LocalJobRepository
 from call_analytics.infra.adapters.local_dir.recording_inbox import (
     LocalDirectoryRecordingInbox,
@@ -10,6 +13,7 @@ from call_analytics.infra.adapters.local_dir.recording_source import (
 )
 
 __all__ = [
+    "CompositeRecordingSource",
     "LocalArtifactStore",
     "LocalDirectoryRecordingInbox",
     "LocalDirectoryRecordingSource",

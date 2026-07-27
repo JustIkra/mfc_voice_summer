@@ -4,8 +4,8 @@ from pathlib import Path
 
 from call_analytics.bootstrap import AppSettings, build_application
 from call_analytics.infra.adapters.local_dir import (
+    CompositeRecordingSource,
     LocalArtifactStore,
-    LocalDirectoryRecordingSource,
     LocalJobRepository,
 )
 from call_analytics.infra.adapters.queue import RabbitMQProcessingQueue
@@ -33,7 +33,7 @@ def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) ->
     assert isinstance(app.pipeline, CallProcessingService)
     assert isinstance(app.worker, ProcessingWorker)
     assert app.worker.requeue_failed is False
-    assert isinstance(app.source, LocalDirectoryRecordingSource)
+    assert isinstance(app.source, CompositeRecordingSource)
     assert isinstance(app.jobs, LocalJobRepository)
     assert isinstance(app.artifacts, LocalArtifactStore)
     assert isinstance(app.queue, RabbitMQProcessingQueue)

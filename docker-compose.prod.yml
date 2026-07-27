@@ -2,24 +2,24 @@ services:
   web:
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
-      VOICE_UPLOADS_DIR: /data/recordings/uploads
+      VOICE_UPLOADS_DIR: /data/uploads
       VOICE_STAGING_DIR: /data/staging
       VOICE_CONTAINER_STAGING_DIR: /data/staging
     volumes:
       - /media/audio:/data/recordings:ro
-      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads
+      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads
       - ./.reports:/data/reports
       - ./.staging:/data/staging
 
   worker:
     environment:
       VOICE_RECORDINGS_DIR: /data/recordings
-      VOICE_UPLOADS_DIR: /data/recordings/uploads
+      VOICE_UPLOADS_DIR: /data/uploads
       VOICE_STAGING_DIR: /data/staging
       VOICE_CONTAINER_STAGING_DIR: /data/staging
     volumes:
       - /media/audio:/data/recordings:ro
-      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/recordings/uploads:ro
+      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads:ro
       - ./.reports:/data/reports
       - ./.staging:/data/staging
 
