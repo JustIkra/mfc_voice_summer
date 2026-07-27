@@ -9,6 +9,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 import torch
+from asr_fallback import transcribe_with_word_timestamp_fallback
 from fastapi import FastAPI, HTTPException
 from faster_whisper import WhisperModel
 from logging_config import get_logger
@@ -118,15 +119,17 @@ def transcribe(request: AudioRequest) -> dict[str, Any]:
         _asr_model = WhisperModel(ASR_MODEL, device=DEVICE, compute_type=compute_type)
         logger.info("loaded_asr_model")
     logger.info("transcribe_start path=%s", path)
-    segments, info = _asr_model.transcribe(
+    segments, info, used_fallback = transcribe_with_word_timestamp_fallback(
+        _asr_model,
         str(path),
         language="ru",
         task="transcribe",
         beam_size=5,
         vad_filter=True,
         condition_on_previous_text=True,
-        word_timestamps=True,
     )
+    if used_fallback:
+        logger.warning("transcribe_word_timestamps_fallback path=%s", path)
     transcript_segments = []
     for item in segments:
         text = item.text.strip()
