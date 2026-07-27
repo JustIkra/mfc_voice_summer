@@ -31,6 +31,15 @@ def test_qwen_healthcheck_uses_python3_available_in_vllm_image() -> None:
     assert healthcheck[:2] == ["CMD", "python3"]
 
 
+def test_qwen_default_context_covers_long_call_reports() -> None:
+    compose = yaml.safe_load(Path("docker-compose.voice.yml").read_text(encoding="utf-8"))
+    command = compose["services"]["qwen-api"]["command"]
+
+    max_model_len_index = command.index("--max-model-len") + 1
+
+    assert command[max_model_len_index] == "${VOICE_QWEN_MAX_MODEL_LEN:-131072}"
+
+
 def test_upload_mount_is_writable_only_in_web() -> None:
     compose = yaml.safe_load(Path("docker-compose.voice.yml").read_text(encoding="utf-8"))
     web_volumes = compose["services"]["web"]["volumes"]
