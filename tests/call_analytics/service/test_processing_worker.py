@@ -137,6 +137,44 @@ async def test_worker_recovers_running_jobs_left_by_restart() -> None:
     assert message.recording_id == RID
 
 
+async def test_worker_republishes_pending_job_when_queue_is_empty() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    await jobs.save(CallProcessingJob.create(RID.value, RID, NOW))
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=FailingPipeline(),
+        jobs=jobs,
+    )
+
+    processed = await worker.run_once()
+
+    message = await queue.get()
+    assert processed is False
+    assert message is not None
+    assert message.recording_id == RID
+
+
+async def test_worker_does_not_republish_pending_job_again_before_reconcile_interval() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    await jobs.save(CallProcessingJob.create(RID.value, RID, NOW))
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=FailingPipeline(),
+        jobs=jobs,
+        pending_reconcile_interval_seconds=60.0,
+        monotonic=lambda: 100.0,
+    )
+
+    await worker.run_once()
+    assert await queue.get() is not None
+
+    await worker.run_once()
+
+    assert await queue.get() is None
+
+
 async def test_worker_acknowledges_canceled_job_without_processing_stages() -> None:
     queue = InMemoryProcessingQueue()
     jobs = InMemoryJobRepository()

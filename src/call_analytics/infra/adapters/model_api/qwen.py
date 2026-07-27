@@ -69,6 +69,7 @@ class QwenReportGenerator(ReportGenerator):
             "temperature": 0.1,
             "max_tokens": self._max_tokens,
             "response_format": {"type": "json_object"},
+            "chat_template_kwargs": {"enable_thinking": False},
         }
         try:
             response = await self._post_json(

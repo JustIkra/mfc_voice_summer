@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
+
 from call_analytics.service.ports import (
     CallProcessingPipeline,
     JobRepository,
@@ -15,11 +18,16 @@ class ProcessingWorker:
         pipeline: CallProcessingPipeline,
         jobs: JobRepository,
         requeue_failed: bool = True,
+        pending_reconcile_interval_seconds: float = 60.0,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._queue = queue
         self._pipeline = pipeline
         self._jobs = jobs
         self._requeue_failed = requeue_failed
+        self._pending_reconcile_interval_seconds = pending_reconcile_interval_seconds
+        self._monotonic = monotonic
+        self._next_pending_reconcile_at = 0.0
 
     @property
     def requeue_failed(self) -> bool:
@@ -28,6 +36,12 @@ class ProcessingWorker:
     async def run_once(self) -> bool:
         message = await self._queue.get()
         if message is None:
+            now = self._monotonic()
+            if now < self._next_pending_reconcile_at:
+                return False
+            self._next_pending_reconcile_at = now + self._pending_reconcile_interval_seconds
+            for job in await self._jobs.list_by_status(JobStatus.PENDING):
+                await self._queue.publish(job.recording_id)
             return False
 
         try:

@@ -36,7 +36,7 @@ def test_extract_json_object_rejects_reasoning_without_final_json() -> None:
 
 
 @pytest.mark.asyncio
-async def test_qwen_report_prompt_contains_dialogue_and_keeps_thinking_enabled() -> None:
+async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> None:
     captured: dict[str, Any] = {}
 
     async def fake_post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any]:
@@ -150,7 +150,7 @@ async def test_qwen_report_prompt_contains_dialogue_and_keeps_thinking_enabled()
     assert "emotions=" in prompt
     assert "Аудит качества разметки" in prompt
     assert captured["payload"]["max_tokens"] == 8192
-    assert captured["payload"].get("chat_template_kwargs") is None
+    assert captured["payload"]["chat_template_kwargs"] == {"enable_thinking": False}
     assert captured["payload"].get("reasoning_effort") is None
     assert captured["timeout"] == 600
     assert report.satisfaction is Satisfaction.SATISFIED
