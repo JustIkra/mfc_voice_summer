@@ -1,0 +1,14 @@
+[mcp_servers.project_otp]
+command = "uv"
+args = [
+  "run",
+  "--locked",
+  "--project",
+  "/Users/maksim/git_projects/mfc_voice_summer/.codex/otp-mcp",
+  "otp-mcp",
+  "serve",
+]
+cwd = "/Users/maksim/git_projects/mfc_voice_summer"
+enabled_tools = ["get_totp"]
+default_tools_approval_mode = "prompt"
+required = false
