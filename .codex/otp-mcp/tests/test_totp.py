@@ -18,6 +18,12 @@ def test_generate_totp_reports_remaining_whole_seconds() -> None:
     assert generate_totp(RFC_SHA1_SECRET, 89.2).valid_for_seconds == 1
 
 
+def test_generate_totp_accepts_human_friendly_zero_for_letter_o() -> None:
+    human_friendly = RFC_SHA1_SECRET.lower().replace("o", "0")
+    grouped = " ".join(human_friendly[index : index + 4] for index in range(0, 32, 4))
+    assert generate_totp(grouped, 59).code == "287082"
+
+
 @pytest.mark.parametrize("secret", ["", "   ", "not*base32"])
 def test_generate_totp_rejects_invalid_seed_without_echoing_it(secret: str) -> None:
     with pytest.raises(InvalidTotpSeedError) as error:

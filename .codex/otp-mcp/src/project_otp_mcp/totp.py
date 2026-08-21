@@ -25,7 +25,7 @@ def _decode_seed(secret: str) -> bytes:
         raise InvalidTotpSeedError("Stored TOTP seed is empty.")
     padded = normalized + "=" * (-len(normalized) % 8)
     try:
-        decoded = base64.b32decode(padded, casefold=True)
+        decoded = base64.b32decode(padded, casefold=True, map01="I")
     except (binascii.Error, ValueError) as error:
         raise InvalidTotpSeedError("Stored TOTP seed is invalid Base32.") from error
     if not decoded:
