@@ -1,55 +1,78 @@
 from __future__ import annotations
 
+from datetime import time
 from pathlib import Path
 
 from call_analytics.bootstrap import AppSettings, build_application
-from call_analytics.infra.adapters.local_dir import (
-    CompositeRecordingSource,
-    LocalArtifactStore,
-    LocalJobRepository,
-)
 from call_analytics.infra.adapters.queue import RabbitMQProcessingQueue
-from call_analytics.service import CallProcessingService, ProcessingWorker
+from call_analytics.infra.adapters.sqlite import (
+    SqliteCallRepository,
+    SqliteDashboardRepository,
+    SqliteFinalReportRepository,
+    SqliteSyncRunRepository,
+)
+from call_analytics.infra.adapters.transient import FilesystemRecordingWorkspace
+from call_analytics.service import (
+    CallProcessingService,
+    DashboardService,
+    GrandstreamSyncService,
+    ProcessingWorker,
+)
 
 
-def test_build_application_wires_pipeline_worker_and_rabbitmq_queue(tmp_path) -> None:
+def test_build_application_wires_sqlite_workspace_worker_and_sync(tmp_path: Path) -> None:
     settings = AppSettings(
-        recordings_dir=tmp_path / "recordings",
-        uploads_dir=tmp_path / "recordings" / "uploads",
-        artifacts_dir=tmp_path / "artifacts",
+        db_path=tmp_path / "data" / "calls.sqlite3",
+        staging_dir=tmp_path / "staging",
         asr_url="http://asr:8100",
         diarization_url="http://diarization:8100",
         emotion_url="http://emotion:8100",
         qwen_base_url="http://qwen:8000/v1",
         qwen_model="qwen3.6-35b",
-        container_recordings_dir="/data/recordings",
-        staging_dir=tmp_path / "staging",
         container_staging_dir="/data/staging",
         rabbitmq_url="amqp://guest:guest@rabbitmq/",
+        grandstream_url="https://ucm.example/api",
+        grandstream_user="api-user",
+        grandstream_password="secret",
+        grandstream_queue="6500",
+        grandstream_queue_name="Call_center",
+        grandstream_ca_file=tmp_path / "ca.crt",
     )
 
     app = build_application(settings)
 
     assert isinstance(app.pipeline, CallProcessingService)
     assert isinstance(app.worker, ProcessingWorker)
-    assert app.worker.requeue_failed is False
-    assert isinstance(app.source, CompositeRecordingSource)
-    assert isinstance(app.jobs, LocalJobRepository)
-    assert isinstance(app.artifacts, LocalArtifactStore)
+    assert isinstance(app.sync, GrandstreamSyncService)
+    assert isinstance(app.dashboard, DashboardService)
+    assert isinstance(app.source, FilesystemRecordingWorkspace)
+    assert isinstance(app.artifacts, FilesystemRecordingWorkspace)
+    assert isinstance(app.jobs, SqliteCallRepository)
+    assert isinstance(app.calls, SqliteCallRepository)
+    assert isinstance(app.final_reports, SqliteFinalReportRepository)
+    assert isinstance(app.dashboard_repository, SqliteDashboardRepository)
+    assert isinstance(app.sync_runs, SqliteSyncRunRepository)
     assert isinstance(app.queue, RabbitMQProcessingQueue)
+    assert settings.db_path.is_file()
 
 
-def test_settings_from_env_uses_local_defaults(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VOICE_RECORDINGS_DIR", str(tmp_path / "input"))
-    monkeypatch.setenv("VOICE_UPLOADS_DIR", str(tmp_path / "input" / "uploads"))
-    monkeypatch.setenv("VOICE_ARTIFACTS_DIR", str(tmp_path / "out"))
+def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("VOICE_DB_PATH", str(tmp_path / "calls.sqlite3"))
     monkeypatch.setenv("VOICE_STAGING_DIR", str(tmp_path / "stage"))
+    monkeypatch.setenv("VOICE_GRANDSTREAM_URL", "https://ucm.example/api")
+    monkeypatch.setenv("VOICE_GRANDSTREAM_USER", "api-user")
+    monkeypatch.setenv("VOICE_GRANDSTREAM_PASSWORD", "secret")
+    monkeypatch.setenv("VOICE_GRANDSTREAM_QUEUE", "6500")
+    monkeypatch.setenv("VOICE_SYNC_TIME", "02:00")
+    monkeypatch.setenv("VOICE_SYNC_ENABLED", "yes")
 
     settings = AppSettings.from_env()
 
-    assert settings.recordings_dir == Path(tmp_path / "input")
-    assert settings.uploads_dir == tmp_path / "input" / "uploads"
-    assert settings.artifacts_dir == Path(tmp_path / "out")
-    assert settings.staging_dir == Path(tmp_path / "stage")
-    assert settings.container_staging_dir == "/data/staging"
-    assert settings.asr_url == "http://127.0.0.1:8101"
+    assert settings.db_path == tmp_path / "calls.sqlite3"
+    assert settings.staging_dir == tmp_path / "stage"
+    assert settings.grandstream_url == "https://ucm.example/api"
+    assert settings.grandstream_user == "api-user"
+    assert settings.grandstream_password == "secret"
+    assert settings.grandstream_queue == "6500"
+    assert settings.sync_time == time(2, 0)
+    assert settings.sync_enabled is True

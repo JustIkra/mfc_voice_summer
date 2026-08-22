@@ -6,11 +6,13 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 .env
+.data/
 .memory-base
 .recordings/
 .uploads/
 .reports/
 .staging/
 .playwright-mcp/
+.superpowers/
 .worktrees/
 model-cache/

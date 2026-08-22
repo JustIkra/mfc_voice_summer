@@ -46,7 +46,8 @@ class GrandstreamError(RuntimeError):
 class UrllibGrandstreamTransport:
     def __init__(self, url: str, ca_file: Path) -> None:
         self._url = url
-        self._ssl_context = ssl.create_default_context(cafile=str(ca_file))
+        self._ca_file = ca_file
+        self._ssl_context: ssl.SSLContext | None = None
 
     async def post(
         self,
@@ -56,6 +57,8 @@ class UrllibGrandstreamTransport:
         return await asyncio.to_thread(self._post, payload, timeout)
 
     def _post(self, payload: dict[str, object], timeout: int) -> GrandstreamHttpResponse:
+        if self._ssl_context is None:
+            self._ssl_context = ssl.create_default_context(cafile=str(self._ca_file))
         data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
         request = urllib.request.Request(
             self._url,
