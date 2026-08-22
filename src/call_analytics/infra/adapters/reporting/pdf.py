@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import html
+from collections.abc import Mapping, Sequence
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from call_analytics.report_view import report_summary_rows, transcript_rows
 from call_analytics.service.ports import ReportRenderer, ReportRendererError
@@ -19,15 +20,15 @@ class ReportLabReportRenderer(ReportRenderer):
         emotions: EmotionAnalysis,
     ) -> bytes:
         try:
-            from reportlab.lib import colors  # type: ignore[import-not-found]
-            from reportlab.lib.pagesizes import A4  # type: ignore[import-not-found]
-            from reportlab.lib.styles import (  # type: ignore[import-not-found]
+            from reportlab.lib import colors  # type: ignore[import-untyped]
+            from reportlab.lib.pagesizes import A4  # type: ignore[import-untyped]
+            from reportlab.lib.styles import (  # type: ignore[import-untyped]
                 ParagraphStyle,
                 getSampleStyleSheet,
             )
-            from reportlab.pdfbase import pdfmetrics  # type: ignore[import-not-found]
-            from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-not-found]
-            from reportlab.platypus import (  # type: ignore[import-not-found]
+            from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
+            from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
+            from reportlab.platypus import (  # type: ignore[import-untyped]
                 Paragraph,
                 SimpleDocTemplate,
                 Spacer,
@@ -118,6 +119,130 @@ class ReportLabReportRenderer(ReportRenderer):
         document.build(story)
         return buffer.getvalue()
 
+    async def render_payload(self, payload: Mapping[str, object]) -> bytes:
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import (
+                ParagraphStyle,
+                getSampleStyleSheet,
+            )
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+            from reportlab.platypus import (
+                Paragraph,
+                SimpleDocTemplate,
+                Spacer,
+                Table,
+                TableStyle,
+            )
+        except ModuleNotFoundError as error:
+            raise ReportRendererError.unexpected(
+                "reportlab is required for PDF report rendering"
+            ) from error
+
+        call = _mapping(payload.get("call"))
+        caller = _mapping(payload.get("caller"))
+        operator = _mapping(payload.get("operator"))
+        analysis = _mapping(payload.get("analysis"))
+        transcript = _mapping(payload.get("transcript"))
+        buffer = BytesIO()
+        font = self._register_font(pdfmetrics, TTFont)
+        styles = getSampleStyleSheet()
+        body = ParagraphStyle(
+            "BodyPayloadRu",
+            parent=styles["BodyText"],
+            fontName=font,
+            fontSize=9,
+            leading=12,
+        )
+        title = ParagraphStyle(
+            "TitlePayloadRu",
+            parent=styles["Title"],
+            fontName=font,
+            fontSize=15,
+            leading=18,
+        )
+        heading = ParagraphStyle(
+            "HeadingPayloadRu",
+            parent=styles["Heading2"],
+            fontName=font,
+            fontSize=12,
+            leading=15,
+        )
+        document = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36,
+        )
+        story: list[Any] = [
+            self._paragraph(Paragraph, f"Отчёт по звонку: {call.get('id', '')}", title),
+            Spacer(1, 10),
+        ]
+        metadata = [
+            ("Файл", ", ".join(_strings(call.get("recording_filenames")))),
+            ("Дата", call.get("started_at", "")),
+            ("Длительность, сек.", call.get("duration_seconds", "")),
+            (
+                "Оператор",
+                f"{operator.get('name', '')} / ID {operator.get('id', '')} / "
+                f"{operator.get('extension', '')}",
+            ),
+            ("Звонящий", f"{caller.get('name') or 'Имя не определено'} / {caller.get('id', '')}"),
+        ]
+        table = Table(
+            [
+                [
+                    self._paragraph(Paragraph, key, body),
+                    self._paragraph(Paragraph, value, body),
+                ]
+                for key, value in metadata
+            ],
+            colWidths=[160, 330],
+        )
+        table.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                    ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.extend([table, Spacer(1, 12)])
+        emotional = _mapping(analysis.get("emotional_assessment"))
+        sections = [
+            ("Краткое содержание", analysis.get("summary", "")),
+            ("Эмоциональная оценка", emotional.get("overall", "")),
+            ("Ключевые моменты", "\n".join(_strings(analysis.get("key_points")))),
+            ("Риски", "\n".join(_strings(analysis.get("risks")))),
+            ("Рекомендации", "\n".join(_strings(analysis.get("recommendations")))),
+        ]
+        for name, value in sections:
+            story.extend(
+                [
+                    self._paragraph(Paragraph, name, heading),
+                    self._paragraph(Paragraph, value or "Нет данных", body),
+                    Spacer(1, 8),
+                ]
+            )
+        story.append(self._paragraph(Paragraph, "Расшифровка", heading))
+        segments = transcript.get("segments", ())
+        if isinstance(segments, Sequence) and not isinstance(segments, str | bytes):
+            for value in segments:
+                segment = _mapping(value)
+                row = (
+                    f"[{segment.get('start_seconds', 0)}-"
+                    f"{segment.get('end_seconds', 0)}] "
+                    f"{segment.get('speaker', 'unknown')}: {segment.get('text', '')}"
+                )
+                story.append(self._paragraph(Paragraph, row, body))
+        document.build(story)
+        return buffer.getvalue()
+
     def _register_font(self, pdfmetrics: Any, ttfont: Any) -> str:
         for candidate in [
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -136,3 +261,13 @@ class ReportLabReportRenderer(ReportRenderer):
 
 
 __all__ = ["ReportLabReportRenderer"]
+
+
+def _mapping(value: object) -> Mapping[str, object]:
+    return cast(Mapping[str, object], value) if isinstance(value, Mapping) else {}
+
+
+def _strings(value: object) -> list[str]:
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
+        return []
+    return [str(item) for item in value]

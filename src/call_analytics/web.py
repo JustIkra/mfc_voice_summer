@@ -1,51 +1,47 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from call_analytics.bootstrap import build_application
-from call_analytics.report_view import report_to_public_json
-from call_analytics.service.workspace import (
-    JobInProgress,
-    JobNotFound,
-    JobQueueConflict,
-    PipelineWorkspace,
-    RecordingNotFound,
-    RecordingUploadUnavailable,
-)
-from domain import (
-    STAGE_ORDER,
-    CallProcessingJob,
-    CallRecording,
-    CallReport,
-    JobStage,
-    RecordingId,
-)
+from call_analytics.bootstrap import MSK, build_application
+from call_analytics.infra.adapters.reporting import ReportLabReportRenderer
+from call_analytics.service import DashboardService
+from call_analytics.service.dashboard import CallPageRequest, DashboardFilter
+from domain import RecordingId
 
 _STATIC_DIR = Path(__file__).parent / "web_static"
+_SATISFACTION = Literal["satisfied", "neutral", "dissatisfied"]
 
 
 @dataclass(slots=True)
 class _State:
-    factory: Callable[[], PipelineWorkspace]
-    workspace: PipelineWorkspace | None = None
+    factory: Callable[[], DashboardService]
+    clock: Callable[[], datetime]
+    dashboard: DashboardService | None = None
 
 
-def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAPI:
-    state = _State(factory=factory or _build_workspace)
-    app = FastAPI(title="MFC Voice Pipeline", version="0.1.0")
+def create_app(
+    factory: Callable[[], DashboardService] | None = None,
+    clock: Callable[[], datetime] | None = None,
+) -> FastAPI:
+    state = _State(
+        factory=factory or _build_dashboard,
+        clock=clock or (lambda: datetime.now(MSK)),
+    )
+    renderer = ReportLabReportRenderer()
+    app = FastAPI(title="MFC Call Quality Dashboard", version="1.0.0")
 
-    def workspace() -> PipelineWorkspace:
-        if state.workspace is None:
-            state.workspace = state.factory()
-        return state.workspace
+    def dashboard() -> DashboardService:
+        if state.dashboard is None:
+            state.dashboard = state.factory()
+        return state.dashboard
 
     @app.get("/health")
     async def health() -> dict[str, str]:
@@ -55,120 +51,117 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
     async def favicon() -> Response:
         return Response(status_code=204)
 
-    @app.get("/api/recordings")
-    async def list_recordings() -> list[dict[str, Any]]:
+    @app.get("/api/dashboard/summary")
+    async def dashboard_summary(
+        date_from: date | None = None,
+        date_to: date | None = None,
+        operator_id: int | None = None,
+        satisfaction: _SATISFACTION | None = None,
+        query: str = "",
+    ) -> dict[str, object]:
+        filters = _filters(
+            date_from,
+            date_to,
+            operator_id,
+            satisfaction,
+            query,
+            state.clock(),
+        )
+        return dict(asdict(await dashboard().summary(filters)))
+
+    @app.get("/api/operators")
+    async def list_operators(
+        date_from: date | None = None,
+        date_to: date | None = None,
+        operator_id: int | None = None,
+        satisfaction: _SATISFACTION | None = None,
+        query: str = "",
+    ) -> list[dict[str, object]]:
+        filters = _filters(
+            date_from,
+            date_to,
+            operator_id,
+            satisfaction,
+            query,
+            state.clock(),
+        )
         return [
-            _recording_to_json(item.recording, item.job)
-            for item in await workspace().list_recordings()
+            {
+                "operator_id": item.id,
+                "operator_extension": item.extension,
+                "operator_name": item.name,
+                "total_calls": item.total_calls,
+                "satisfied_percent": item.satisfied_percent,
+                "attention_calls": item.attention_calls,
+            }
+            for item in await dashboard().operators(filters)
         ]
 
-    @app.post("/api/recordings", status_code=201)
-    async def upload_recording(
-        file: Annotated[UploadFile, File()],
-    ) -> dict[str, Any]:
-        if file.filename is None or not file.filename.lower().endswith(".wav"):
-            raise HTTPException(status_code=400, detail="загрузите запись в формате .wav")
-        try:
-            item = await workspace().upload_recording(file.filename, await file.read())
-            job = await workspace().enqueue_recording(item.recording.id)
-        except RecordingUploadUnavailable as error:
-            raise HTTPException(status_code=501, detail="upload is not configured") from error
-        return _recording_to_json(item.recording, job)
+    @app.get("/api/calls")
+    async def list_calls(
+        date_from: date | None = None,
+        date_to: date | None = None,
+        operator_id: int | None = None,
+        satisfaction: _SATISFACTION | None = None,
+        query: str = "",
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    ) -> dict[str, object]:
+        filters = _filters(
+            date_from,
+            date_to,
+            operator_id,
+            satisfaction,
+            query,
+            state.clock(),
+        )
+        result = await dashboard().calls(
+            CallPageRequest(filters=filters, page=page, page_size=page_size)
+        )
+        return {
+            "items": [
+                {
+                    **asdict(item),
+                    "started_at": item.started_at.isoformat(),
+                }
+                for item in result.items
+            ],
+            "page": result.page,
+            "page_size": result.page_size,
+            "total_items": result.total_items,
+        }
 
-    @app.get("/api/jobs/{job_id}")
-    async def get_job(job_id: str) -> dict[str, Any]:
-        try:
-            return _job_to_json(await workspace().get_job(job_id))
-        except JobNotFound as error:
-            raise HTTPException(status_code=404, detail="job not found") from error
-
-    @app.websocket("/api/jobs/{job_id}/events")
-    async def job_events(websocket: WebSocket, job_id: str) -> None:
-        await websocket.accept()
-        try:
-            while True:
-                try:
-                    job = await workspace().get_job(job_id)
-                except JobNotFound:
-                    await websocket.close(code=1008, reason="job not found")
-                    return
-                await websocket.send_json(_job_to_json(job))
-                if job.status.value in {"done", "failed"}:
-                    return
-                await asyncio.sleep(1)
-        except WebSocketDisconnect:
-            return
-
-    @app.post("/api/recordings/{recording_id}/jobs", status_code=201)
-    async def enqueue_recording(recording_id: str) -> dict[str, Any]:
-        try:
-            job = await workspace().enqueue_recording(RecordingId(recording_id))
-        except RecordingNotFound as error:
-            raise HTTPException(status_code=404, detail="recording not found") from error
-        return _job_to_json(job)
-
-    @app.delete("/api/recordings/{recording_id}/report")
-    async def delete_recording_report(recording_id: str) -> dict[str, Any]:
-        try:
-            item = await workspace().delete_recording_report(RecordingId(recording_id))
-        except RecordingNotFound as error:
-            raise HTTPException(status_code=404, detail="recording not found") from error
-        except JobInProgress as error:
-            raise HTTPException(status_code=409, detail="recording is in progress") from error
-        return _recording_to_json(item.recording, item.job)
-
-    @app.post("/api/recordings/{recording_id}/overwrite", status_code=201)
-    async def overwrite_recording_report(recording_id: str) -> dict[str, Any]:
-        try:
-            job = await workspace().overwrite_recording_report(RecordingId(recording_id))
-        except RecordingNotFound as error:
-            raise HTTPException(status_code=404, detail="recording not found") from error
-        except JobInProgress as error:
-            raise HTTPException(status_code=409, detail="recording is in progress") from error
-        return _job_to_json(job)
-
-    @app.post("/api/jobs/{job_id}/retry")
-    async def retry_job(job_id: str) -> dict[str, Any]:
-        try:
-            return _job_to_json(await workspace().retry_job(job_id))
-        except JobNotFound as error:
-            raise HTTPException(status_code=404, detail="job not found") from error
-
-    @app.post("/api/jobs/{job_id}/requeue")
-    async def requeue_pending_job(job_id: str) -> dict[str, Any]:
-        try:
-            return _job_to_json(await workspace().requeue_pending_job(job_id))
-        except JobNotFound as error:
-            raise HTTPException(status_code=404, detail="job not found") from error
-        except JobQueueConflict as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-    @app.post("/api/jobs/{job_id}/cancel")
-    async def cancel_pending_job(job_id: str) -> dict[str, Any]:
-        try:
-            return _job_to_json(await workspace().cancel_pending_job(job_id))
-        except JobNotFound as error:
-            raise HTTPException(status_code=404, detail="job not found") from error
-        except JobQueueConflict as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-    @app.get("/api/jobs/{job_id}/report")
-    async def get_report(job_id: str) -> dict[str, Any]:
-        report = await workspace().load_report(RecordingId(job_id))
-        if report is None:
+    @app.get("/api/calls/{call_id}/report")
+    async def get_report(call_id: str) -> dict[str, object]:
+        payload = await dashboard().report(RecordingId(call_id))
+        if payload is None:
             raise HTTPException(status_code=404, detail="report not found")
-        return _report_to_json(report)
+        return payload
 
-    @app.get("/api/jobs/{job_id}/report.pdf")
-    async def get_report_pdf(job_id: str) -> Response:
-        content = await workspace().load_report_pdf(RecordingId(job_id))
-        if content is None:
-            raise HTTPException(status_code=404, detail="report pdf not found")
+    @app.get("/api/calls/{call_id}/report.pdf")
+    async def get_report_pdf(call_id: str) -> Response:
+        payload = await dashboard().report(RecordingId(call_id))
+        if payload is None:
+            raise HTTPException(status_code=404, detail="report not found")
+        content = await renderer.render_payload(payload)
         return Response(
             content=content,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{job_id}.pdf"'},
+            headers={"Content-Disposition": 'inline; filename="call-report.pdf"'},
         )
+
+    @app.get("/api/sync/status")
+    async def sync_status() -> dict[str, object]:
+        status = await dashboard().sync_status()
+        if status is None:
+            return {"status": "never"}
+        return {
+            **asdict(status),
+            "window_start": status.window_start.isoformat(),
+            "window_end": status.window_end.isoformat(),
+            "started_at": status.started_at.isoformat(),
+            "finished_at": status.finished_at.isoformat() if status.finished_at else None,
+        }
 
     if _STATIC_DIR.is_dir():
         app.mount("/assets", StaticFiles(directory=_STATIC_DIR / "assets"), name="assets")
@@ -180,41 +173,29 @@ def create_app(factory: Callable[[], PipelineWorkspace] | None = None) -> FastAP
     return app
 
 
-def _build_workspace() -> PipelineWorkspace:
-    return build_application().workspace
+def _filters(
+    date_from: date | None,
+    date_to: date | None,
+    operator_id: int | None,
+    satisfaction: str | None,
+    query: str,
+    now: datetime,
+) -> DashboardFilter:
+    end_date = date_to or now.date()
+    start_date = date_from or (end_date - timedelta(days=29))
+    if start_date > end_date:
+        raise HTTPException(status_code=422, detail="date_from must not be after date_to")
+    return DashboardFilter(
+        date_from=datetime.combine(start_date, time.min, tzinfo=MSK),
+        date_to=datetime.combine(end_date, time.max, tzinfo=MSK),
+        operator_id=operator_id,
+        satisfaction=satisfaction,
+        query=query.strip(),
+    )
 
 
-def _recording_to_json(
-    recording: CallRecording,
-    job: CallProcessingJob | None,
-) -> dict[str, Any]:
-    return {
-        "id": recording.id.value,
-        "filename": str(recording.metadata.get("filename", f"{recording.id.value}.wav")),
-        "started_at": recording.started_at.isoformat(),
-        "duration_seconds": recording.duration.total_seconds(),
-        "channel_layout": recording.channel_layout.name,
-        "job": _job_to_json(job) if job is not None else None,
-    }
-
-
-def _job_to_json(job: CallProcessingJob) -> dict[str, Any]:
-    completed = [stage for stage in STAGE_ORDER if stage in job.completed_stages]
-    next_stage = job.next_stage()
-    return {
-        "id": job.id,
-        "recording_id": job.recording_id.value,
-        "status": job.status.value,
-        "completed_stages": [stage.value for stage in completed],
-        "next_stage": next_stage.value if isinstance(next_stage, JobStage) else None,
-        "attempts": {stage.value: count for stage, count in job.attempts.items()},
-        "last_error": list(job.last_error) if job.last_error is not None else None,
-        "created_at": job.created_at.isoformat(),
-    }
-
-
-def _report_to_json(report: CallReport) -> dict[str, Any]:
-    return report_to_public_json(report)
+def _build_dashboard() -> DashboardService:
+    return build_application().dashboard
 
 
 app = create_app()
