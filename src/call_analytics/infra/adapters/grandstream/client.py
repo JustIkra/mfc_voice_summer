@@ -10,7 +10,7 @@ import urllib.request
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol, cast
 
 from call_analytics.infra.adapters.grandstream.cdr import parse_accounts, parse_cdr_page
@@ -159,9 +159,10 @@ class GrandstreamClient(TelephonyGateway):
         return tuple(item.strip() for item in value.split(",") if item.strip())
 
     async def download_recording(self, filename: str) -> bytes:
+        basename = PurePosixPath(filename.rstrip("@")).name
         response = await self._request(
             "recapi",
-            {"filedir": "monitor", "filename": filename},
+            {"filedir": "queue", "filename": basename},
             timeout=self._download_timeout_seconds,
         )
         if _maybe_json(response.body) is not None:

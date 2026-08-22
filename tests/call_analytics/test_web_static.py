@@ -59,6 +59,9 @@ def test_styles_use_approved_tokens_fonts_and_breakpoints() -> None:
     assert "@media (max-width: 1024px)" in css
     assert "@media (max-width: 767px)" in css
     assert "prefers-reduced-motion" in css
+    assert "linear-gradient(rgba(20, 60, 74" not in css
+    assert ".dashboard-grid" in css
+    assert "align-items: stretch" in css
 
 
 def test_font_assets_and_licenses_are_bundled() -> None:

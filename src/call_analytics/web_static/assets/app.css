@@ -42,9 +42,7 @@ body {
   min-width: 20rem;
   margin: 0;
   color: var(--ink);
-  background:
-    linear-gradient(rgba(20, 60, 74, 0.035) 1px, transparent 1px) 0 0 / 100% 4rem,
-    var(--mist);
+  background: var(--mist);
 }
 
 button,
@@ -418,7 +416,7 @@ select {
   grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.55fr);
   gap: 1rem;
   margin-top: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .panel {

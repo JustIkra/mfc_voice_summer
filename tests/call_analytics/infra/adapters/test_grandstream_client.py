@@ -149,7 +149,10 @@ async def test_client_reads_recording_names_and_binary() -> None:
     transport = FakeGrandstreamTransport(
         {
             "getRecordInfosByCall": [
-                {"response": {"recordfiles": "2026-08/a.wav,2026-08/b.wav"}, "status": 0}
+                {
+                    "response": {"recordfiles": "2026-08/q6500-a.wav,2026-08/q6500-b.wav"},
+                    "status": 0,
+                }
             ],
             "recapi": [b"RIFFdemo"],
         }
@@ -159,5 +162,8 @@ async def test_client_reads_recording_names_and_binary() -> None:
     filenames = await client.recording_files("901")
     content = await client.download_recording(filenames[0])
 
-    assert filenames == ("2026-08/a.wav", "2026-08/b.wav")
+    request = next(item for item in transport.requests if item["action"] == "recapi")
+    assert filenames == ("2026-08/q6500-a.wav", "2026-08/q6500-b.wav")
+    assert request["filedir"] == "queue"
+    assert request["filename"] == "q6500-a.wav"
     assert content == b"RIFFdemo"
