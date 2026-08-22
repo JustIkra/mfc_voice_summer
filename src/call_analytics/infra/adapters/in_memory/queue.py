@@ -10,6 +10,7 @@ class InMemoryProcessingQueue(ProcessingQueue):
     def __init__(self) -> None:
         self._messages: deque[ProcessingMessage] = deque()
         self._counter = 0
+        self._published: list[RecordingId] = []
         self._acked: list[str] = []
         self._rejected: list[tuple[str, bool]] = []
 
@@ -21,8 +22,13 @@ class InMemoryProcessingQueue(ProcessingQueue):
     def rejected(self) -> tuple[tuple[str, bool], ...]:
         return tuple(self._rejected)
 
+    @property
+    def published(self) -> tuple[RecordingId, ...]:
+        return tuple(self._published)
+
     async def publish(self, recording_id: RecordingId) -> None:
         self._counter += 1
+        self._published.append(recording_id)
         self._messages.append(
             ProcessingMessage(
                 recording_id=recording_id,
