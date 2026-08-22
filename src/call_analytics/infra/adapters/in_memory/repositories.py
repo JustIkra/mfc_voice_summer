@@ -3,7 +3,21 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
-from call_analytics.service.ports import ArtifactStore, CallRepository, JobRepository
+from call_analytics.service.ports import (
+    ArtifactStore,
+    CallListItem,
+    CallPage,
+    CallPageRequest,
+    CallRepository,
+    DashboardFilter,
+    DashboardRepository,
+    DashboardSummary,
+    FinalReportRepository,
+    JobRepository,
+    OperatorSummary,
+    SyncRunRepository,
+    SyncStatus,
+)
 from domain import (
     CallProcessingJob,
     CallRecording,
@@ -11,9 +25,12 @@ from domain import (
     DiarizedTranscript,
     DiscoveredCall,
     EmotionAnalysis,
+    FinalReportDocument,
     JobStatus,
+    Period,
     RecordingId,
     Transcript,
+    build_report_payload,
 )
 
 _RETRYABLE_ERROR_KINDS = frozenset({"CONNECTION", "TIMEOUT", "RATE_LIMIT", "SERVER"})
@@ -101,6 +118,113 @@ class InMemoryCallRepository(CallRepository):
         ]
 
 
+class InMemoryFinalReportRepository(FinalReportRepository):
+    def __init__(self) -> None:
+        self._payloads: dict[str, dict[str, object]] = {}
+
+    async def finalize(self, job: CallProcessingJob, document: FinalReportDocument) -> None:
+        if job.recording_id != document.recording.id:
+            raise ValueError("job and final report have different recording ids")
+        self._payloads[job.recording_id.value] = build_report_payload(document)
+
+    async def load_payload(self, recording_id: RecordingId) -> dict[str, object] | None:
+        return self._payloads.get(recording_id.value)
+
+
+class InMemoryDashboardRepository(DashboardRepository):
+    def __init__(
+        self,
+        summary: DashboardSummary | None = None,
+        operators: Sequence[OperatorSummary] = (),
+        calls: Sequence[CallListItem] = (),
+    ) -> None:
+        self._summary = summary or DashboardSummary(
+            total_calls=0,
+            resolved_calls=0,
+            average_duration_seconds=0.0,
+            attention_calls=0,
+            satisfaction={"satisfied": 0, "neutral": 0, "dissatisfied": 0},
+        )
+        self._operators = list(operators)
+        self._calls = list(calls)
+
+    async def summary(self, filters: DashboardFilter) -> DashboardSummary:
+        del filters
+        return self._summary
+
+    async def operators(self, filters: DashboardFilter) -> Sequence[OperatorSummary]:
+        del filters
+        return self._operators
+
+    async def list_calls(self, request: CallPageRequest) -> CallPage:
+        start = (request.page - 1) * request.page_size
+        end = start + request.page_size
+        return CallPage(
+            items=self._calls[start:end],
+            page=request.page,
+            page_size=request.page_size,
+            total_items=len(self._calls),
+        )
+
+
+class InMemorySyncRunRepository(SyncRunRepository):
+    def __init__(self) -> None:
+        self._last: SyncStatus | None = None
+        self._running_id: int | None = None
+        self._next_id = 1
+
+    async def start(self, period: Period, started_at: datetime) -> int | None:
+        if self._running_id is not None:
+            return None
+        run_id = self._next_id
+        self._next_id += 1
+        self._running_id = run_id
+        self._last = SyncStatus(
+            window_start=period.start,
+            window_end=period.end,
+            status="running",
+            started_at=started_at,
+            finished_at=None,
+            discovered=0,
+            queued=0,
+            skipped=0,
+            failed=0,
+        )
+        return run_id
+
+    async def finish(
+        self,
+        run_id: int,
+        finished_at: datetime,
+        status: str,
+        discovered: int,
+        queued: int,
+        skipped: int,
+        failed: int,
+        error_kind: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        if run_id != self._running_id or self._last is None:
+            raise KeyError(f"sync run {run_id} not found")
+        self._last = SyncStatus(
+            window_start=self._last.window_start,
+            window_end=self._last.window_end,
+            status=status,
+            started_at=self._last.started_at,
+            finished_at=finished_at,
+            discovered=discovered,
+            queued=queued,
+            skipped=skipped,
+            failed=failed,
+            error_kind=error_kind,
+            error_message=error_message,
+        )
+        self._running_id = None
+
+    async def last(self) -> SyncStatus | None:
+        return self._last
+
+
 class InMemoryArtifactStore(ArtifactStore):
     """Словарная реализация `ArtifactStore` для тестов."""
 
@@ -157,4 +281,11 @@ class InMemoryArtifactStore(ArtifactStore):
         self._report_pdfs.pop(key, None)
 
 
-__all__ = ["InMemoryArtifactStore", "InMemoryCallRepository", "InMemoryJobRepository"]
+__all__ = [
+    "InMemoryArtifactStore",
+    "InMemoryCallRepository",
+    "InMemoryDashboardRepository",
+    "InMemoryFinalReportRepository",
+    "InMemoryJobRepository",
+    "InMemorySyncRunRepository",
+]

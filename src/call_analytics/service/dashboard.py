@@ -76,6 +76,8 @@ class CallPage:
 
 @dataclass(frozen=True, slots=True)
 class SyncStatus:
+    window_start: datetime
+    window_end: datetime
     status: str
     started_at: datetime
     finished_at: datetime | None
@@ -83,6 +85,8 @@ class SyncStatus:
     queued: int
     skipped: int
     failed: int
+    error_kind: str | None = None
+    error_message: str | None = None
 
 
 class DashboardService:

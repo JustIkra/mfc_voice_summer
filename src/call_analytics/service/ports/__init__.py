@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from call_analytics.service.dashboard import (
+    CallListItem,
+    CallPage,
+    CallPageRequest,
+    DashboardFilter,
+    DashboardSummary,
+    OperatorSummary,
+    SyncStatus,
+)
 from call_analytics.service.ports.application import (
     ArtifactStore,
     CallRecordingSource,
@@ -41,11 +50,16 @@ from call_analytics.service.ports.telephony import (
 
 __all__ = [
     "ArtifactStore",
+    "CallListItem",
+    "CallPage",
+    "CallPageRequest",
     "CallProcessingPipeline",
     "CallRecordingSource",
     "CallRecordingSourceError",
     "CallRepository",
+    "DashboardFilter",
     "DashboardRepository",
+    "DashboardSummary",
     "DialogueAssemblerPort",
     "EmotionRecognizer",
     "EmotionRecognizerError",
@@ -54,6 +68,7 @@ __all__ = [
     "JobRepository",
     "ModelAudio",
     "ModelAudioStager",
+    "OperatorSummary",
     "Period",
     "PreparedAudio",
     "ProcessingMessage",
@@ -68,6 +83,7 @@ __all__ = [
     "SpeakerDiarizer",
     "SpeakerDiarizerError",
     "SyncRunRepository",
+    "SyncStatus",
     "TelephonyAccount",
     "TelephonyGateway",
     "Transcriber",

@@ -39,6 +39,7 @@ def test_domain_public_surface() -> None:
         "Transcript",
         "TranscriptSegment",
         "TranscriptWord",
+        "build_report_payload",
     }
     assert expected == set(domain.__all__)
 

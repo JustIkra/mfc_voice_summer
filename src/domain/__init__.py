@@ -30,7 +30,7 @@ from domain.report import (
     QuestionResolution,
     Satisfaction,
 )
-from domain.report_document import FinalReportDocument
+from domain.report_document import FinalReportDocument, build_report_payload
 from domain.transcript import TimeSpan, Transcript, TranscriptSegment, TranscriptWord
 
 __all__ = [
@@ -70,4 +70,5 @@ __all__ = [
     "Transcript",
     "TranscriptSegment",
     "TranscriptWord",
+    "build_report_payload",
 ]
