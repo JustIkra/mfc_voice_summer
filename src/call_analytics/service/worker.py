@@ -7,6 +7,7 @@ from call_analytics.service.ports import (
     CallProcessingPipeline,
     JobRepository,
     ProcessingQueue,
+    RecordingWorkspace,
 )
 from domain import JobStatus
 
@@ -20,6 +21,7 @@ class ProcessingWorker:
         requeue_failed: bool = True,
         pending_reconcile_interval_seconds: float = 60.0,
         monotonic: Callable[[], float] = time.monotonic,
+        workspace: RecordingWorkspace | None = None,
     ) -> None:
         self._queue = queue
         self._pipeline = pipeline
@@ -28,6 +30,7 @@ class ProcessingWorker:
         self._pending_reconcile_interval_seconds = pending_reconcile_interval_seconds
         self._monotonic = monotonic
         self._next_pending_reconcile_at = 0.0
+        self._workspace = workspace
 
     @property
     def requeue_failed(self) -> bool:
@@ -47,9 +50,11 @@ class ProcessingWorker:
         try:
             job = await self._pipeline.process(message.recording_id)
         except Exception:
+            if self._workspace is not None:
+                await self._workspace.clear(message.recording_id)
             await self._queue.reject(message, requeue=self._requeue_failed)
             raise
-        if job.status in {JobStatus.DONE, JobStatus.CANCELED}:
+        if job.status in {JobStatus.DONE, JobStatus.CANCELED, JobStatus.SKIPPED_EMPTY}:
             await self._queue.ack(message)
         else:
             await self._queue.reject(message, requeue=self._requeue_failed)
@@ -58,6 +63,8 @@ class ProcessingWorker:
     async def recover_interrupted_jobs(self) -> int:
         recovered = 0
         for job in await self._jobs.list_by_status(JobStatus.RUNNING):
+            if self._workspace is not None:
+                await self._workspace.clear(job.recording_id)
             await self._jobs.save(job.recover_interrupted())
             await self._queue.publish(job.recording_id)
             recovered += 1

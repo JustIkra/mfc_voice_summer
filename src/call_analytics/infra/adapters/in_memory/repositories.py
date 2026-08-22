@@ -119,13 +119,16 @@ class InMemoryCallRepository(CallRepository):
 
 
 class InMemoryFinalReportRepository(FinalReportRepository):
-    def __init__(self) -> None:
+    def __init__(self, jobs: JobRepository | None = None) -> None:
         self._payloads: dict[str, dict[str, object]] = {}
+        self._jobs = jobs
 
     async def finalize(self, job: CallProcessingJob, document: FinalReportDocument) -> None:
         if job.recording_id != document.recording.id:
             raise ValueError("job and final report have different recording ids")
         self._payloads[job.recording_id.value] = build_report_payload(document)
+        if self._jobs is not None:
+            await self._jobs.save(job)
 
     async def load_payload(self, recording_id: RecordingId) -> dict[str, object] | None:
         return self._payloads.get(recording_id.value)

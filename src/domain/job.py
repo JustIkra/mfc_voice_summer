@@ -112,6 +112,18 @@ class CallProcessingJob:
             )
         return replace(self, status=JobStatus.PENDING, last_error=None)
 
+    def restart(self) -> CallProcessingJob:
+        if self.status is not JobStatus.FAILED:
+            raise InvalidJobTransition(
+                f"перезапуск возможен только из FAILED, текущий {self.status.name}"
+            )
+        return replace(
+            self,
+            status=JobStatus.PENDING,
+            completed_stages=frozenset(),
+            last_error=None,
+        )
+
     def cancel(self) -> CallProcessingJob:
         if self.status is not JobStatus.PENDING:
             raise InvalidJobTransition(
@@ -131,7 +143,12 @@ class CallProcessingJob:
             raise InvalidJobTransition(
                 f"recovery возможен только из RUNNING, текущий {self.status.name}"
             )
-        return replace(self, status=JobStatus.PENDING, last_error=None)
+        return replace(
+            self,
+            status=JobStatus.PENDING,
+            completed_stages=frozenset(),
+            last_error=None,
+        )
 
 
 __all__ = ["STAGE_ORDER", "CallProcessingJob", "JobStage", "JobStatus"]

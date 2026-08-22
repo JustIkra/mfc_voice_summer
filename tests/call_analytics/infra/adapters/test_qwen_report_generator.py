@@ -53,6 +53,10 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
                           "file": "call-1.wav",
                           "client_speaker": "SPEAKER_01",
                           "operator_speaker": "SPEAKER_00",
+                          "caller_name": {
+                            "value": "Анна",
+                            "confidence": 0.92
+                          },
                           "question_resolved": {
                             "value": "yes",
                             "confidence": 0.86,
@@ -156,5 +160,7 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
     assert report.satisfaction is Satisfaction.SATISFIED
     assert report.client_speaker == "SPEAKER_01"
     assert report.operator_speaker == "SPEAKER_00"
+    assert report.caller_name == "Анна"
+    assert report.caller_name_confidence == 0.92
     assert report.question_resolved.value == "yes"
     assert report.client_satisfaction.score_1_5 == 5

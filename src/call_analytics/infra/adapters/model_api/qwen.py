@@ -100,7 +100,8 @@ class QwenReportGenerator(ReportGenerator):
                     "ставь unknown и объясняй почему. "
                     "SPEAKER_00/SPEAKER_01 — технические метки diarization, не роли. "
                     "Роли client_speaker/operator_speaker назначай только по смысловым "
-                    "доказательствам."
+                    "доказательствам. Имя клиента возвращай только если клиент явно "
+                    "представился; не угадывай имя по контексту."
                 ),
             },
             {
@@ -123,6 +124,10 @@ class QwenReportGenerator(ReportGenerator):
                       "file": "...",
                       "client_speaker": "SPEAKER_00|SPEAKER_01|unknown",
                       "operator_speaker": "SPEAKER_00|SPEAKER_01|unknown",
+                      "caller_name": {{
+                        "value": "явно произнесённое имя|unknown",
+                        "confidence": 0.0
+                      }},
                       "question_resolved": {{
                         "value": "yes|no|partial|unknown",
                         "confidence": 0.0,
@@ -183,12 +188,23 @@ class QwenReportGenerator(ReportGenerator):
         satisfaction_payload = payload.get("client_satisfaction", {})
         resolution_payload = payload.get("question_resolved", {})
         emotional_payload = payload.get("emotional_assessment", {})
+        caller_name_payload = payload.get("caller_name", {})
+        caller_name_value = str(caller_name_payload.get("value", "unknown")).strip()
+        caller_name = (
+            None
+            if caller_name_value.lower() in {"", "unknown", "null", "none"}
+            else caller_name_value
+        )
         return CallReport(
             recording_id=TranscriptIdAdapter(recording_id).recording_id,
             satisfaction=self._satisfaction(satisfaction_payload.get("value")),
             summary=str(payload.get("summary", "")),
             key_points=tuple(str(item) for item in payload.get("key_points", ())),
             generated_at=self._clock(),
+            caller_name=caller_name,
+            caller_name_confidence=(
+                float(caller_name_payload.get("confidence", 0.0)) if caller_name else 0.0
+            ),
             client_speaker=str(payload.get("client_speaker", "unknown")),
             operator_speaker=str(payload.get("operator_speaker", "unknown")),
             question_resolved=QuestionResolution(

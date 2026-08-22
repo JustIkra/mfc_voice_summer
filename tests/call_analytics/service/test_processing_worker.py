@@ -16,7 +16,7 @@ from call_analytics.infra.adapters.noop import (
     NoopTranscriber,
 )
 from call_analytics.service import CallProcessingService, ProcessingWorker
-from call_analytics.service.ports import CallProcessingPipeline
+from call_analytics.service.ports import CallProcessingPipeline, RecordingWorkspace
 from domain import (
     AudioBlob,
     CallProcessingJob,
@@ -52,6 +52,36 @@ class FailingPipeline(CallProcessingPipeline):
 
     async def resume(self, job_id: str) -> CallProcessingJob:
         raise AssertionError("resume is not used")
+
+
+class SkippedPipeline(FailingPipeline):
+    async def process(self, recording_id: RecordingId) -> CallProcessingJob:
+        return (
+            CallProcessingJob.create(
+                recording_id.value,
+                recording_id,
+                NOW,
+            )
+            .start_stage(JobStage.TRANSCRIBE)
+            .skip_empty()
+        )
+
+
+class ClearingWorkspace(RecordingWorkspace):
+    def __init__(self) -> None:
+        self.cleared: list[RecordingId] = []
+
+    async def prepare(self, call_id, parts):
+        raise AssertionError("prepare is not used")
+
+    async def load_audio(self, call_id):
+        raise AssertionError("load_audio is not used")
+
+    async def clear(self, call_id: RecordingId) -> None:
+        self.cleared.append(call_id)
+
+    async def clear_stale(self, older_than):
+        raise AssertionError("clear_stale is not used")
 
 
 async def test_worker_processes_queue_message_and_acknowledges_done_job() -> None:
@@ -105,6 +135,24 @@ async def test_worker_rejects_message_when_pipeline_raises_unexpected_error() ->
 
     assert queue.acked == ()
     assert queue.rejected == ((RID.value, False),)
+
+
+async def test_worker_clears_workspace_when_pipeline_raises_unexpected_error() -> None:
+    queue = InMemoryProcessingQueue()
+    workspace = ClearingWorkspace()
+    await queue.publish(RID)
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=FailingPipeline(),
+        jobs=InMemoryJobRepository(),
+        requeue_failed=False,
+        workspace=workspace,
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await worker.run_once()
+
+    assert workspace.cleared == [RID]
 
 
 async def test_worker_recovers_running_jobs_left_by_restart() -> None:
@@ -207,3 +255,19 @@ async def test_worker_acknowledges_canceled_job_without_processing_stages() -> N
     assert queue.acked == (RID.value,)
     assert queue.rejected == ()
     assert await artifacts.load_transcript(RID) is None
+
+
+async def test_worker_acknowledges_skipped_empty_job() -> None:
+    queue = InMemoryProcessingQueue()
+    await queue.publish(RID)
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=SkippedPipeline(),
+        jobs=InMemoryJobRepository(),
+    )
+
+    processed = await worker.run_once()
+
+    assert processed is True
+    assert queue.acked == (RID.value,)
+    assert queue.rejected == ()

@@ -58,6 +58,28 @@ def test_recover_interrupted_running_job_returns_to_pending_stage() -> None:
     assert recovered.attempts[JobStage.TRANSCRIBE] == 1
 
 
+def test_recover_interrupted_job_restarts_from_transcribe() -> None:
+    job = _job().start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)
+    job = job.start_stage(JobStage.DIARIZE)
+
+    recovered = job.recover_interrupted()
+
+    assert recovered.status is JobStatus.PENDING
+    assert recovered.completed_stages == frozenset()
+    assert recovered.next_stage() is JobStage.TRANSCRIBE
+
+
+def test_failed_job_can_restart_from_transcribe() -> None:
+    job = _job().start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)
+    failed = job.start_stage(JobStage.DIARIZE).fail_stage(JobStage.DIARIZE, "TIMEOUT", "slow")
+
+    restarted = failed.restart()
+
+    assert restarted.status is JobStatus.PENDING
+    assert restarted.completed_stages == frozenset()
+    assert restarted.next_stage() is JobStage.TRANSCRIBE
+
+
 def test_fail_then_retry_keeps_completed_and_reruns_failed_stage() -> None:
     job = _job()
     job = job.start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)
