@@ -3,77 +3,94 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MFC Voice</title>
+    <title>Качество звонков МФЦ</title>
     <link rel="stylesheet" href="/assets/app.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">MFC Voice Summer</p>
-        <h1>Анализ записей звонков</h1>
-      </div>
-      <div class="toolbar">
-        <form class="upload-form" id="uploadForm">
-          <input
-            id="wavInput"
-            name="file"
-            type="file"
-            accept=".wav,audio/wav,audio/x-wav,audio/wave,audio/*"
-          />
-          <button class="action primary" type="button" id="uploadButton">Загрузить</button>
-        </form>
-        <button class="icon-button" id="refreshButton" type="button" title="Обновить">
-          <span aria-hidden="true">↻</span>
-        </button>
-      </div>
-    </header>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">МФЦ</div>
+          <div class="brand-copy">
+            <strong>Контроль качества звонков</strong>
+            <span>Очередь 6500 · внутренний контур</span>
+          </div>
+        </div>
+        <button class="system-state" id="syncStatus" type="button">Синхронизация не запускалась</button>
+      </header>
 
-    <main>
-      <section class="summary" aria-label="Сводка">
-        <div>
-          <span class="metric" id="totalCount">0</span>
-          <span class="label">записей</span>
+      <section class="hero" aria-labelledby="pageTitle">
+        <div class="hero-grid">
+          <div>
+            <p class="eyebrow">Качество линии / выбранный период</p>
+            <h1 id="pageTitle">Каждый звонок — понятный результат</h1>
+            <p class="hero-lead">Сводка по работе отдела, удовлетворённости клиентов и решениям операторов. В журнале доступны отчёты и полные расшифровки.</p>
+          </div>
+          <div class="hero-counter">
+            <strong id="heroTotal">0</strong>
+            <span>звонков с готовым отчётом</span>
+            <span class="muted" id="activePeriod">Последние 30 дней</span>
+          </div>
         </div>
-        <div>
-          <span class="metric" id="doneCount">0</span>
-          <span class="label">готово</span>
-        </div>
-        <div>
-          <span class="metric" id="failedCount">0</span>
-          <span class="label">с ошибкой</span>
+        <div class="quality-ribbon" id="qualityRibbon" aria-label="Распределение удовлетворённости">
+          <span class="good" id="qualityGood">0% удовлетворены</span>
+          <span class="neutral" id="qualityNeutral">0% нейтрально</span>
+          <span class="bad" id="qualityBad">0% негативно</span>
         </div>
       </section>
 
-      <section class="workspace">
-        <div class="list-panel">
-          <div class="panel-header">
-            <h2>Записи</h2>
-            <div class="panel-meta">
-              <label class="search-box">
-                <span class="visually-hidden">Поиск записей</span>
-                <input id="recordingSearch" type="search" placeholder="Поиск" autocomplete="off" />
-              </label>
-              <span class="live-indicator idle" id="liveStatus">offline</span>
-              <span class="muted" id="lastUpdated"></span>
-            </div>
-          </div>
-          <div
-            class="status-filters"
-            id="statusFilters"
-            aria-label="Фильтр по статусу"
-          ></div>
-          <div class="recordings" id="recordings"></div>
-          <div class="pagination" id="pagination" hidden></div>
+      <form class="filters" id="filterForm">
+        <label>Дата с<input id="dateFrom" type="date" /></label>
+        <label>Дата по<input id="dateTo" type="date" /></label>
+        <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
+        <label>Оценка<select id="satisfactionSelect"><option value="">Все оценки</option><option value="satisfied">Удовлетворён</option><option value="neutral">Нейтрально</option><option value="dissatisfied">Не удовлетворён</option></select></label>
+        <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
+        <div class="filter-actions">
+          <button class="button primary" type="submit">Показать отчёт</button>
+          <button class="button ghost" id="resetFilters" type="button">Сбросить</button>
         </div>
+      </form>
 
-        <aside class="details-panel" id="details">
-          <h2>Отчёт</h2>
-          <p class="muted">Выберите запись из списка.</p>
+      <section class="metrics" id="summaryMetrics" aria-label="Основные показатели">
+        <article class="metric"><span>Готовых отчётов</span><strong id="metricTotal">0</strong><small>пустые записи исключены</small></article>
+        <article class="metric"><span>Вопрос решён</span><strong id="metricResolved">0%</strong><small id="metricResolvedCount">0 разговоров</small></article>
+        <article class="metric warn"><span>Средняя длительность</span><strong id="metricDuration">00:00</strong><small>минуты и секунды</small></article>
+        <article class="metric danger"><span>Требуют внимания</span><strong id="metricAttention">0</strong><small>негатив или высокий риск</small></article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel quality-panel">
+          <div class="panel-header"><div><h2>Удовлетворённость по отделу</h2><p>Результаты за выбранный период</p></div><span class="utility" id="qualityCount">0 отчётов</span></div>
+          <div class="quality-ribbon compact" aria-hidden="true"><span class="good" id="countGood">0</span><span class="neutral" id="countNeutral">0</span><span class="bad" id="countBad">0</span></div>
+        </article>
+
+        <aside class="panel operators-panel">
+          <div class="panel-header"><div><h2>Операторы</h2><p>ID, нагрузка и качество</p></div><span class="utility" id="operatorCount">0 человек</span></div>
+          <div class="operator-list" id="operatorBoard"><div class="empty">Нет данных за выбранный период.</div></div>
         </aside>
+
+        <article class="panel table-panel">
+          <div class="panel-header"><div><h2>Журнал звонков</h2><p>Отчёты и расшифровки без хранения исходных файлов</p></div><span class="utility" id="journalCount">0 звонков</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Дата и время</th><th>ID звонка</th><th>Оператор</th><th>Звонящий</th><th>Тема</th><th>Длит.</th><th>Оценка</th><th>Отчёт</th></tr></thead>
+              <tbody id="callJournal"><tr><td colspan="8"><div class="empty">Загрузка данных…</div></td></tr></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="pagination" aria-label="Страницы журнала" hidden></nav>
+        </article>
       </section>
     </main>
 
-    <div class="toast" id="toast" hidden></div>
+    <dialog id="reportDialog" aria-labelledby="reportTitle">
+      <div class="dialog-shell">
+        <header class="dialog-header"><div><p class="eyebrow">Отчёт по звонку</p><h2 id="reportTitle">Детали разговора</h2></div><button class="icon-button" id="closeReport" type="button" aria-label="Закрыть">×</button></header>
+        <div class="dialog-content" id="reportContent"></div>
+        <footer class="dialog-footer"><a class="button primary" id="downloadPdf" href="#" target="_blank" rel="noopener">Скачать PDF</a><button class="button ghost" id="closeReportBottom" type="button">Закрыть</button></footer>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" hidden></div>
     <script src="/assets/app.js" type="module"></script>
   </body>
 </html>
