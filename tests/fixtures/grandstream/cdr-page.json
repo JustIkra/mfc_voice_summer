@@ -1,0 +1,70 @@
+{
+  "cdr_root": [
+    {
+      "cdr": "group-001",
+      "main_cdr": {
+        "AcctId": "800",
+        "action_type": "QUEUE[6500]",
+        "caller_name": "79000000001",
+        "disposition": "",
+        "duration": "91",
+        "recordfiles": "",
+        "src": "79000000001",
+        "start": "2026-08-22 10:00:00"
+      },
+      "sub_cdr_1": [
+        {
+          "AcctId": "901",
+          "action_type": "DIAL",
+          "answer": "2026-08-22 10:00:10",
+          "billsec": "81",
+          "disposition": "ANSWERED",
+          "dst": "11198",
+          "dstanswer": "11198",
+          "dstchannel_ext": "11198",
+          "recordfiles": "2026-08/call.wav",
+          "src": "79000000001",
+          "start": "2026-08-22 10:00:09"
+        },
+        {
+          "AcctId": "902",
+          "action_type": "DIAL",
+          "disposition": "NO ANSWER",
+          "dst": "11194",
+          "dstanswer": "",
+          "dstchannel_ext": "11194",
+          "recordfiles": "",
+          "src": "79000000001",
+          "start": "2026-08-22 10:00:09"
+        }
+      ],
+      "sub_cdr_2": []
+    },
+    {
+      "cdr": "reserve-001",
+      "main_cdr": {
+        "AcctId": "910",
+        "action_type": "QUEUE[6501]",
+        "caller_name": "79000000002",
+        "disposition": "ANSWERED",
+        "duration": "30",
+        "recordfiles": "2026-08/reserve.wav",
+        "src": "79000000002",
+        "start": "2026-08-22 11:00:00"
+      }
+    },
+    {
+      "cdr": "direct-001",
+      "main_cdr": {
+        "AcctId": "920",
+        "action_type": "DIAL",
+        "caller_name": "11198",
+        "disposition": "ANSWERED",
+        "duration": "15",
+        "recordfiles": "2026-08/direct.wav",
+        "src": "11198",
+        "start": "2026-08-22 12:00:00"
+      }
+    }
+  ]
+}

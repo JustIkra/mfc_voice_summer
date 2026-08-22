@@ -1,0 +1,17 @@
+{
+  "response": {
+    "account": [
+      {
+        "id": 14,
+        "extension": "11198",
+        "fullname": "Оператор 11198"
+      },
+      {
+        "id": 11,
+        "extension": "11194",
+        "fullname": "Оператор 11194"
+      }
+    ]
+  },
+  "status": 0
+}
