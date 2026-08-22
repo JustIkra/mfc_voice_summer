@@ -145,6 +145,27 @@ async def test_client_lists_only_queue_6500_calls_and_uses_local_time() -> None:
     assert "caller" not in request
 
 
+async def test_client_pages_cdr_by_raw_record_offset_until_empty_page() -> None:
+    first = json.loads(Path("tests/fixtures/grandstream/cdr-page.json").read_text())
+    second = json.loads(Path("tests/fixtures/grandstream/cdr-page.json").read_text())
+    second["cdr_root"][0]["cdr"] = "group-002"
+    transport = FakeGrandstreamTransport({"cdrapi": [first, second, {"cdr_root": [], "status": 0}]})
+    client = _client(transport)
+    period = Period(
+        start=datetime(2026, 6, 1, tzinfo=MSK),
+        end=datetime(2026, 8, 22, 12, 0, tzinfo=MSK),
+    )
+
+    calls = await client.list_calls(
+        period,
+        [TelephonyAccount(id=14, extension="11198", fullname="Оператор 11198")],
+    )
+
+    requests = [item for item in transport.requests if item["action"] == "cdrapi"]
+    assert [call.id.value for call in calls] == ["cdr:group-001", "cdr:group-002"]
+    assert [request["offset"] for request in requests] == ["0", "1000", "2000"]
+
+
 async def test_client_reads_recording_names_and_binary() -> None:
     transport = FakeGrandstreamTransport(
         {

@@ -20,6 +20,7 @@ from domain import DiscoveredCall, Period
 LOGGER = logging.getLogger(__name__)
 MSK = timezone(timedelta(hours=3))
 _AUTH_STATUSES = frozenset({-5, -6})
+_CDR_PAGE_SIZE = 1000
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,12 +132,14 @@ class GrandstreamClient(TelephonyGateway):
                     "format": "json",
                     "startTime": period.start.astimezone(MSK).strftime("%Y-%m-%dT%H:%M:%S"),
                     "endTime": period.end.astimezone(MSK).strftime("%Y-%m-%dT%H:%M:%S"),
-                    "numRecords": "1000",
+                    "numRecords": str(_CDR_PAGE_SIZE),
                     "offset": str(offset),
                 },
             )
             groups = payload.get("cdr_root", ())
             group_count = len(groups) if isinstance(groups, Sequence) else 0
+            if group_count == 0:
+                break
             calls.extend(
                 parse_cdr_page(
                     payload,
@@ -145,9 +148,7 @@ class GrandstreamClient(TelephonyGateway):
                     self._queue_name,
                 )
             )
-            if group_count < 1000:
-                break
-            offset += group_count
+            offset += _CDR_PAGE_SIZE
         return calls
 
     async def recording_files(self, acct_id: str) -> tuple[str, ...]:
