@@ -51,9 +51,7 @@ class NoopTranscriber(Transcriber):
 class NoopDiarizer(SpeakerDiarizer):
     """Заглушка: роль по номеру стерео-канала, иначе UNKNOWN."""
 
-    async def diarize(
-        self, audio: AudioBlob, transcript: Transcript
-    ) -> DiarizedTranscript:
+    async def diarize(self, audio: AudioBlob, transcript: Transcript) -> DiarizedTranscript:
         segments = tuple(
             DiarizedSegment(
                 span=seg.span,
@@ -64,17 +62,13 @@ class NoopDiarizer(SpeakerDiarizer):
             )
             for seg in transcript.segments
         )
-        return DiarizedTranscript(
-            recording_id=transcript.recording_id, segments=segments
-        )
+        return DiarizedTranscript(recording_id=transcript.recording_id, segments=segments)
 
 
 class NoopEmotionRecognizer(EmotionRecognizer):
     """Заглушка: всем сегментам NEUTRAL."""
 
-    async def recognize(
-        self, audio: AudioBlob, diarized: DiarizedTranscript
-    ) -> EmotionAnalysis:
+    async def recognize(self, audio: AudioBlob, diarized: DiarizedTranscript) -> EmotionAnalysis:
         segments = tuple(
             SegmentEmotion(
                 span=seg.span,
@@ -84,9 +78,7 @@ class NoopEmotionRecognizer(EmotionRecognizer):
             )
             for seg in diarized.segments
         )
-        return EmotionAnalysis(
-            recording_id=diarized.recording_id, segments=segments
-        )
+        return EmotionAnalysis(recording_id=diarized.recording_id, segments=segments)
 
 
 class NoopReportGenerator(ReportGenerator):

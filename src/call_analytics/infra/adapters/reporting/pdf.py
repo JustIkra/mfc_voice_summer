@@ -19,15 +19,15 @@ class ReportLabReportRenderer(ReportRenderer):
         emotions: EmotionAnalysis,
     ) -> bytes:
         try:
-            from reportlab.lib import colors  # type: ignore[import-untyped]
-            from reportlab.lib.pagesizes import A4  # type: ignore[import-untyped]
-            from reportlab.lib.styles import (  # type: ignore[import-untyped]
+            from reportlab.lib import colors  # type: ignore[import-not-found]
+            from reportlab.lib.pagesizes import A4  # type: ignore[import-not-found]
+            from reportlab.lib.styles import (  # type: ignore[import-not-found]
                 ParagraphStyle,
                 getSampleStyleSheet,
             )
-            from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
-            from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
-            from reportlab.platypus import (  # type: ignore[import-untyped]
+            from reportlab.pdfbase import pdfmetrics  # type: ignore[import-not-found]
+            from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-not-found]
+            from reportlab.platypus import (  # type: ignore[import-not-found]
                 Paragraph,
                 SimpleDocTemplate,
                 Spacer,

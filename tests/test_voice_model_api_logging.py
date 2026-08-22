@@ -48,8 +48,7 @@ def test_api_pipeline_uses_dedicated_logger_unit() -> None:
 
 def test_api_pipeline_does_not_use_print_logging() -> None:
     sources = [
-        path.read_text(encoding="utf-8")
-        for path in (ROOT / "src" / "call_analytics").rglob("*.py")
+        path.read_text(encoding="utf-8") for path in (ROOT / "src" / "call_analytics").rglob("*.py")
     ]
 
     assert all("print(" not in source for source in sources)

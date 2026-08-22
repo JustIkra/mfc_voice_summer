@@ -25,8 +25,7 @@ def _seconds(value: timedelta) -> float:
 def _overlap(a: TimeSpan, b: TimeSpan) -> float:
     return max(
         0.0,
-        min(_seconds(a.end), _seconds(b.end))
-        - max(_seconds(a.start), _seconds(b.start)),
+        min(_seconds(a.end), _seconds(b.end)) - max(_seconds(a.start), _seconds(b.start)),
     )
 
 
@@ -85,15 +84,9 @@ class DialogueAssembler:
         current: _UtteranceDraft | None = None
         for word in words:
             match = self._best_speaker(word.span, diarized.segments)
-            gap = (
-                _seconds(word.span.start) - _seconds(current.span.end)
-                if current
-                else 0.0
-            )
+            gap = _seconds(word.span.start) - _seconds(current.span.end) if current else 0.0
             should_start = (
-                current is None
-                or current.speaker != match.speaker
-                or gap > self._max_gap_seconds
+                current is None or current.speaker != match.speaker or gap > self._max_gap_seconds
             )
             if should_start:
                 current = _UtteranceDraft(
@@ -184,8 +177,7 @@ class DialogueAssembler:
                     score=emotion.score,
                     overlap_seconds=round(seconds, 3),
                     distribution={
-                        label.name.lower(): score
-                        for label, score in emotion.scores.items()
+                        label.name.lower(): score for label, score in emotion.scores.items()
                     },
                 )
             )
@@ -203,15 +195,11 @@ class DialogueAssembler:
     def _quality(self, utterances: tuple[DialogueUtterance, ...]) -> DialogueQuality:
         return DialogueQuality(
             utterances=len(utterances),
-            unknown_speaker_utterances=sum(
-                1 for item in utterances if item.speaker is None
-            ),
+            unknown_speaker_utterances=sum(1 for item in utterances if item.speaker is None),
             low_speaker_coverage_utterances=sum(
                 1 for item in utterances if item.speaker_coverage < 0.5
             ),
-            utterances_without_emotion=sum(
-                1 for item in utterances if not item.emotion_episodes
-            ),
+            utterances_without_emotion=sum(1 for item in utterances if not item.emotion_episodes),
         )
 
 

@@ -77,9 +77,7 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
             id=self._recording_id(path),
             started_at=self._started_at(path),
             duration=duration,
-            channel_layout=ChannelLayout.STEREO
-            if nchannels == 2
-            else ChannelLayout.MONO,
+            channel_layout=ChannelLayout.STEREO if nchannels == 2 else ChannelLayout.MONO,
             metadata={"filename": self._display_name(path)},
         )
 
@@ -106,9 +104,9 @@ class LocalDirectoryRecordingSource(CallRecordingSource):
             return datetime.fromtimestamp(float(epoch.group(1)), MSK)
         stamp = _DATETIME_RE.search(path.stem)
         if stamp is not None:
-            return datetime.strptime(
-                f"{stamp.group(1)}{stamp.group(2)}", "%Y%m%d%H%M%S"
-            ).replace(tzinfo=MSK)
+            return datetime.strptime(f"{stamp.group(1)}{stamp.group(2)}", "%Y%m%d%H%M%S").replace(
+                tzinfo=MSK
+            )
         return datetime.fromtimestamp(path.stat().st_mtime, MSK)
 
     def _recording_id(self, path: Path) -> RecordingId:

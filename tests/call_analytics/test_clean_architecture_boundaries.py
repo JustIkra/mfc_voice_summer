@@ -26,18 +26,15 @@ def test_infrastructure_adapters_do_not_import_service_layer() -> None:
         path.relative_to(ROOT)
         for path in _python_files("src/call_analytics/infra/adapters")
         if "from call_analytics.service import" in path.read_text(encoding="utf-8")
-        or "from call_analytics.service." in path.read_text(encoding="utf-8").replace(
-            "from call_analytics.service.ports", ""
-        )
+        or "from call_analytics.service."
+        in path.read_text(encoding="utf-8").replace("from call_analytics.service.ports", "")
     ]
 
     assert offenders == []
 
 
 def test_application_ports_do_not_define_dataclasses() -> None:
-    source = (ROOT / "src/call_analytics/service/ports/application.py").read_text(
-        encoding="utf-8"
-    )
+    source = (ROOT / "src/call_analytics/service/ports/application.py").read_text(encoding="utf-8")
 
     assert "from dataclasses import dataclass" not in source
     assert "@dataclass" not in source

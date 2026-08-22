@@ -9,9 +9,7 @@ from typing import Any, cast
 PostJson = Callable[[str, dict[str, Any], int], Awaitable[dict[str, Any]]]
 
 
-async def urllib_post_json(
-    url: str, payload: dict[str, Any], timeout: int
-) -> dict[str, Any]:
+async def urllib_post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any]:
     def _post() -> dict[str, Any]:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = urllib.request.Request(

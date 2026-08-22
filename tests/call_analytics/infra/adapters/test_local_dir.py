@@ -21,9 +21,7 @@ MONO_NAME = "q6500-FreeSWITCH-20260302-080314-1772427789.149782-11198"
 STEREO_NAME = "q6500-79009337234-20250630-134146-1751280101.328447-11196"
 
 
-def _make_wav(
-    path: Path, nchannels: int, framerate: int = 8000, frames: int = 8000
-) -> None:
+def _make_wav(path: Path, nchannels: int, framerate: int = 8000, frames: int = 8000) -> None:
     with wave.open(str(path), "wb") as wav:
         wav.setnchannels(nchannels)
         wav.setsampwidth(2)
@@ -211,9 +209,7 @@ async def test_composite_source_keeps_archive_ids_and_namespaces_uploads(
     assert by_id["call"].metadata["filename"] == "call.wav"
     assert by_id["upload-call"].metadata["filename"] == "uploads/call.wav"
     assert (await source.fetch_audio(RecordingId("call"))).data == archive_path.read_bytes()
-    assert (
-        await source.fetch_audio(RecordingId("upload-call"))
-    ).data == upload_path.read_bytes()
+    assert (await source.fetch_audio(RecordingId("upload-call"))).data == upload_path.read_bytes()
 
 
 async def test_recording_inbox_uses_namespaced_upload_source(tmp_path: Path) -> None:

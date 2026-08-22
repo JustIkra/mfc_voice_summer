@@ -144,8 +144,7 @@ class CallProcessingService(CallProcessingPipeline):
             stored_transcript = await self._artifacts.load_transcript(recording_id)
             if stored_transcript is None:
                 raise _StageExecutionError(
-                    "MISSING_ARTIFACT",
-                    f"артефакт transcript отсутствует для {recording_id.value}"
+                    "MISSING_ARTIFACT", f"артефакт transcript отсутствует для {recording_id.value}"
                 )
             diarized = await self._diarizer.diarize(audio, stored_transcript)
             await self._artifacts.save_diarization(diarized)
@@ -154,8 +153,7 @@ class CallProcessingService(CallProcessingPipeline):
             stored_diarized = await self._artifacts.load_diarization(recording_id)
             if stored_diarized is None:
                 raise _StageExecutionError(
-                    "MISSING_ARTIFACT",
-                    f"артефакт diarization отсутствует для {recording_id.value}"
+                    "MISSING_ARTIFACT", f"артефакт diarization отсутствует для {recording_id.value}"
                 )
             emotion = await self._emotion_recognizer.recognize(audio, stored_diarized)
             await self._artifacts.save_emotion(emotion)
@@ -163,14 +161,11 @@ class CallProcessingService(CallProcessingPipeline):
             stored_transcript = await self._artifacts.load_transcript(recording_id)
             stored_diarized = await self._artifacts.load_diarization(recording_id)
             stored_emotion = await self._artifacts.load_emotion(recording_id)
-            if (
-                stored_transcript is None
-                or stored_diarized is None
-                or stored_emotion is None
-            ):
+            if stored_transcript is None or stored_diarized is None or stored_emotion is None:
                 raise _StageExecutionError(
                     "MISSING_ARTIFACT",
-                    f"артефакты transcript/diarization/emotion отсутствуют для {recording_id.value}"
+                    "артефакты transcript/diarization/emotion отсутствуют "
+                    f"для {recording_id.value}",
                 )
             report = await self._report_generator.generate(
                 stored_transcript, stored_diarized, stored_emotion

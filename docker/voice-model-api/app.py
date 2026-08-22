@@ -25,9 +25,7 @@ SER_MODEL = os.getenv(
 )
 SERVICE = os.getenv("MODEL_SERVICE", "asr")
 DEVICE = (
-    "cuda"
-    if os.getenv("MODEL_DEVICE", "cuda") == "cuda" and torch.cuda.is_available()
-    else "cpu"
+    "cuda" if os.getenv("MODEL_DEVICE", "cuda") == "cuda" and torch.cuda.is_available() else "cpu"
 )
 
 app = FastAPI(title=f"MFC Voice {SERVICE} API")
@@ -237,8 +235,7 @@ def emotion(request: EmotionRequest) -> dict[str, Any]:
             logits = _emotion_model(**inputs).logits[0]
             probs = torch.softmax(logits, dim=-1).detach().cpu().numpy()
         distribution = {
-            _emotion_model.config.id2label[i]: float(probs[i])
-            for i in range(len(probs))
+            _emotion_model.config.id2label[i]: float(probs[i]) for i in range(len(probs))
         }
         label, score = max(distribution.items(), key=lambda item: item[1])
         result.append(
