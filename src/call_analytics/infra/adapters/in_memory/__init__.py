@@ -6,11 +6,13 @@ from call_analytics.infra.adapters.in_memory.recording_source import (
 )
 from call_analytics.infra.adapters.in_memory.repositories import (
     InMemoryArtifactStore,
+    InMemoryCallRepository,
     InMemoryJobRepository,
 )
 
 __all__ = [
     "InMemoryArtifactStore",
+    "InMemoryCallRepository",
     "InMemoryJobRepository",
     "InMemoryProcessingQueue",
     "InMemoryRecordingSource",
