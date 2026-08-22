@@ -30,6 +30,7 @@ from domain.report import (
     QuestionResolution,
     Satisfaction,
 )
+from domain.report_document import FinalReportDocument
 from domain.transcript import TimeSpan, Transcript, TranscriptSegment, TranscriptWord
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "EmotionEpisode",
     "EmotionLabel",
     "EmotionalAssessment",
+    "FinalReportDocument",
     "InvalidJobTransition",
     "JobStage",
     "JobStatus",

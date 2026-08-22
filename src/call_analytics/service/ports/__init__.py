@@ -24,30 +24,52 @@ from call_analytics.service.ports.application import (
     Transcriber,
     TranscriberError,
 )
+from call_analytics.service.ports.persistence import (
+    CallRepository,
+    DashboardRepository,
+    FinalReportRepository,
+    SyncRunRepository,
+)
 from call_analytics.service.ports.pipeline import CallProcessingPipeline
+from call_analytics.service.ports.telephony import (
+    InvalidRecordingError,
+    PreparedAudio,
+    RecordingWorkspace,
+    TelephonyAccount,
+    TelephonyGateway,
+)
 
 __all__ = [
     "ArtifactStore",
     "CallProcessingPipeline",
     "CallRecordingSource",
     "CallRecordingSourceError",
+    "CallRepository",
+    "DashboardRepository",
     "DialogueAssemblerPort",
     "EmotionRecognizer",
     "EmotionRecognizerError",
+    "FinalReportRepository",
+    "InvalidRecordingError",
     "JobRepository",
     "ModelAudio",
     "ModelAudioStager",
     "Period",
+    "PreparedAudio",
     "ProcessingMessage",
     "ProcessingQueue",
     "ProcessingQueueError",
     "RecordingInbox",
+    "RecordingWorkspace",
     "ReportGenerator",
     "ReportGeneratorError",
     "ReportRenderer",
     "ReportRendererError",
     "SpeakerDiarizer",
     "SpeakerDiarizerError",
+    "SyncRunRepository",
+    "TelephonyAccount",
+    "TelephonyGateway",
     "Transcriber",
     "TranscriberError",
 ]

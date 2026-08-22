@@ -21,6 +21,7 @@ def test_domain_public_surface() -> None:
         "EmotionAnalysis",
         "EmotionEpisode",
         "EmotionLabel",
+        "FinalReportDocument",
         "InvalidJobTransition",
         "JobStage",
         "JobStatus",
