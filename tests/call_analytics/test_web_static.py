@@ -25,6 +25,7 @@ def test_dashboard_has_approved_structure_without_recording_controls() -> None:
         "syncStatus",
     ):
         assert f'id="{element_id}"' in html
+    assert 'class="quality-legend"' in html
     assert "<audio" not in html.lower()
     assert "upload" not in html.lower()
     assert "прослуш" not in html.lower()
@@ -61,6 +62,8 @@ def test_styles_use_approved_tokens_fonts_and_breakpoints() -> None:
     assert "prefers-reduced-motion" in css
     assert "linear-gradient(rgba(20, 60, 74" not in css
     assert ".dashboard-grid" in css
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in css
+    assert "grid-column: span 2" in css
     assert "align-items: stretch" in css
 
 

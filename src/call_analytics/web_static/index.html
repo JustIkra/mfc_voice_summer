@@ -32,10 +32,15 @@
             <span class="muted" id="activePeriod">Последние 30 дней</span>
           </div>
         </div>
-        <div class="quality-ribbon" id="qualityRibbon" aria-label="Распределение удовлетворённости">
-          <span class="good" id="qualityGood">0% удовлетворены</span>
-          <span class="neutral" id="qualityNeutral">0% нейтрально</span>
-          <span class="bad" id="qualityBad">0% негативно</span>
+        <div class="quality-ribbon" id="qualityRibbon" aria-hidden="true">
+          <span class="good"></span>
+          <span class="neutral"></span>
+          <span class="bad"></span>
+        </div>
+        <div class="quality-legend" aria-label="Распределение удовлетворённости">
+          <span><i class="swatch good"></i><span id="qualityGood">0% удовлетворены</span></span>
+          <span><i class="swatch neutral"></i><span id="qualityNeutral">0% нейтрально</span></span>
+          <span><i class="swatch bad"></i><span id="qualityBad">0% негативно</span></span>
         </div>
       </section>
 
@@ -61,7 +66,11 @@
       <section class="dashboard-grid">
         <article class="panel quality-panel">
           <div class="panel-header"><div><h2>Удовлетворённость по отделу</h2><p>Результаты за выбранный период</p></div><span class="utility" id="qualityCount">0 отчётов</span></div>
-          <div class="quality-ribbon compact" aria-hidden="true"><span class="good" id="countGood">0</span><span class="neutral" id="countNeutral">0</span><span class="bad" id="countBad">0</span></div>
+          <div class="quality-ribbon compact" aria-hidden="true">
+            <span class="good"><strong id="countGood">0</strong><small>Удовлетворены</small></span>
+            <span class="neutral"><strong id="countNeutral">0</strong><small>Нейтрально</small></span>
+            <span class="bad"><strong id="countBad">0</strong><small>Негативно</small></span>
+          </div>
         </article>
 
         <aside class="panel operators-panel">
