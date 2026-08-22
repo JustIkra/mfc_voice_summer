@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -160,6 +161,20 @@ async def test_second_sync_does_not_download_or_queue_duplicate() -> None:
     assert result.queued == 0
     assert gateway.download_count == 1
     assert queue.published == (RID,)
+
+
+async def test_batch_limit_counts_new_calls_not_leading_duplicates() -> None:
+    first = _call()
+    second = replace(first, id=RecordingId("cdr:group-002"))
+    gateway = FakeTelephonyGateway([first], {"2026-08/call.wav": b"RIFFdemo"})
+    service, _, _, queue, _ = _build_service(gateway)
+    await service.run_once(NOW)
+    gateway.calls = [first, second]
+
+    result = await service.run_once(NOW + timedelta(days=1), limit=1)
+
+    assert result == SyncResult(discovered=1, queued=1, skipped=0, failed=0)
+    assert queue.published == (RID, second.id)
 
 
 async def test_empty_recording_is_registered_as_skipped() -> None:

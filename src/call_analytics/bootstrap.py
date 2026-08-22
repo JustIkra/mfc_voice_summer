@@ -68,6 +68,7 @@ class AppSettings:
     grandstream_api_timeout_seconds: int = 120
     grandstream_download_timeout_seconds: int = 900
     sync_time: time = time(2, 0)
+    sync_batch_limit: int = 1000
     sync_enabled: bool = False
     sync_run_on_start: bool = False
 
@@ -113,6 +114,7 @@ class AppSettings:
                 os.getenv("VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS", "900")
             ),
             sync_time=_parse_time(os.getenv("VOICE_SYNC_TIME", "02:00")),
+            sync_batch_limit=_positive_int("VOICE_SYNC_BATCH_LIMIT", 1000),
             sync_enabled=_env_bool("VOICE_SYNC_ENABLED", False),
             sync_run_on_start=_env_bool("VOICE_SYNC_RUN_ON_START", False),
         )
@@ -261,6 +263,13 @@ def _env_bool(name: str, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"{name} must be yes/no, got {value!r}")
+
+
+def _positive_int(name: str, default: int) -> int:
+    value = int(os.getenv(name, str(default)))
+    if value < 1:
+        raise ValueError(f"{name} must be positive, got {value!r}")
+    return value
 
 
 __all__ = ["MSK", "AppSettings", "Application", "build_application"]

@@ -46,6 +46,7 @@ VOICE_GRANDSTREAM_PASSWORD=
 VOICE_GRANDSTREAM_QUEUE=6500
 VOICE_GRANDSTREAM_CA_FILE=/usr/local/share/ca-certificates/mfcRootCA.crt
 VOICE_SYNC_TIME=02:00
+VOICE_SYNC_BATCH_LIMIT=1000
 VOICE_SYNC_ENABLED=no
 VOICE_SYNC_RUN_ON_START=no
 ```
@@ -74,7 +75,7 @@ docker compose -f docker-compose.voice.yml -f docker-compose.prod.yml run --rm \
   grandstream-sync python -m call_analytics.sync_app --once --limit 1
 ```
 
-После live-smoke установить `VOICE_SYNC_ENABLED=yes` и перезапустить `grandstream-sync`.
+После live-smoke установить `VOICE_SYNC_ENABLED=yes` и перезапустить `grandstream-sync`. Один запуск добавляет не более `VOICE_SYNC_BATCH_LIMIT` новых звонков; дубликаты в лимит не входят.
 
 На `ranghigs` privileged Docker-команды выполняются через `pamsu`, не `sudo`.
 

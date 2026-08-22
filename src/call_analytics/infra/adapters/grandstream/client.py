@@ -21,6 +21,7 @@ LOGGER = logging.getLogger(__name__)
 MSK = timezone(timedelta(hours=3))
 _AUTH_STATUSES = frozenset({-5, -6})
 _CDR_PAGE_SIZE = 1000
+_MAX_CDR_PAGES = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +126,8 @@ class GrandstreamClient(TelephonyGateway):
             raise ValueError("Grandstream CDR period must be timezone-aware")
         offset = 0
         calls: list[DiscoveredCall] = []
-        while True:
+        page_signatures: set[tuple[str, ...]] = set()
+        for _ in range(_MAX_CDR_PAGES):
             payload = await self._request_json(
                 "cdrapi",
                 {
@@ -137,9 +139,16 @@ class GrandstreamClient(TelephonyGateway):
                 },
             )
             groups = payload.get("cdr_root", ())
-            group_count = len(groups) if isinstance(groups, Sequence) else 0
-            if group_count == 0:
+            if not isinstance(groups, Sequence) or isinstance(groups, str | bytes | bytearray):
                 break
+            if not groups:
+                break
+            signature = tuple(
+                str(group.get("cdr", "")) for group in groups if isinstance(group, Mapping)
+            )
+            if signature and signature in page_signatures:
+                break
+            page_signatures.add(signature)
             calls.extend(
                 parse_cdr_page(
                     payload,
@@ -149,6 +158,8 @@ class GrandstreamClient(TelephonyGateway):
                 )
             )
             offset += _CDR_PAGE_SIZE
+        else:
+            raise GrandstreamError(None, "Grandstream CDR pagination exceeded safety limit")
         return calls
 
     async def recording_files(self, acct_id: str) -> tuple[str, ...]:

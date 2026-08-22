@@ -19,7 +19,10 @@ def next_run(now: datetime, scheduled: time) -> datetime:
 
 async def run_once(limit: int | None = None, application: Application | None = None) -> None:
     app = application or build_application()
-    await app.sync.run_once(datetime.now(MSK), limit=limit)
+    await app.sync.run_once(
+        datetime.now(MSK),
+        limit=limit if limit is not None else app.settings.sync_batch_limit,
+    )
 
 
 async def run_scheduler(
@@ -32,11 +35,11 @@ async def run_scheduler(
         LOGGER.info("Grandstream scheduler is disabled")
         await asyncio.Event().wait()
     if app.settings.sync_run_on_start:
-        await app.sync.run_once(clock())
+        await app.sync.run_once(clock(), limit=app.settings.sync_batch_limit)
     while True:
         now = clock()
         await sleep((next_run(now, app.settings.sync_time) - now).total_seconds())
-        await app.sync.run_once(clock())
+        await app.sync.run_once(clock(), limit=app.settings.sync_batch_limit)
 
 
 def _parser() -> argparse.ArgumentParser:

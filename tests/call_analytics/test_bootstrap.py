@@ -64,6 +64,7 @@ def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: P
     monkeypatch.setenv("VOICE_GRANDSTREAM_PASSWORD", "secret")
     monkeypatch.setenv("VOICE_GRANDSTREAM_QUEUE", "6500")
     monkeypatch.setenv("VOICE_SYNC_TIME", "02:00")
+    monkeypatch.setenv("VOICE_SYNC_BATCH_LIMIT", "750")
     monkeypatch.setenv("VOICE_SYNC_ENABLED", "yes")
 
     settings = AppSettings.from_env()
@@ -75,4 +76,5 @@ def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: P
     assert settings.grandstream_password == "secret"
     assert settings.grandstream_queue == "6500"
     assert settings.sync_time == time(2, 0)
+    assert settings.sync_batch_limit == 750
     assert settings.sync_enabled is True

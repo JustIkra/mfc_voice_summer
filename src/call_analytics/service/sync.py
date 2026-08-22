@@ -64,19 +64,21 @@ class GrandstreamSyncService:
         try:
             accounts = await self._gateway.list_accounts()
             calls = await self._gateway.list_calls(period, accounts)
-            selected = calls if limit is None else calls[:limit]
-            for call in selected:
+            for call in calls:
                 if call.queue.extension != self._queue_extension:
                     continue
                 outcome = await self._ingest(call, now)
-                if outcome is not IngestOutcome.DUPLICATE:
-                    discovered += 1
+                if outcome is IngestOutcome.DUPLICATE:
+                    continue
+                discovered += 1
                 if outcome is IngestOutcome.QUEUED:
                     queued += 1
                 elif outcome is IngestOutcome.SKIPPED:
                     skipped += 1
                 elif outcome is IngestOutcome.FAILED:
                     failed += 1
+                if limit is not None and discovered >= limit:
+                    break
 
             for recording in await self._calls.list_retryable(self._max_attempts):
                 if limit is not None and queued >= limit:
