@@ -145,9 +145,7 @@ class QwenReportGenerator(ReportGenerator):
                         "operator_emotions": ["..."],
                         "evidence": ["..."]
                       }},
-                      "summary": "...",
-                      "risks": ["..."],
-                      "recommendations": ["..."]
+                      "summary": "..."
                     }}
                     """
                 ).strip(),
@@ -199,7 +197,7 @@ class QwenReportGenerator(ReportGenerator):
             recording_id=TranscriptIdAdapter(recording_id).recording_id,
             satisfaction=self._satisfaction(satisfaction_payload.get("value")),
             summary=str(payload.get("summary", "")),
-            key_points=tuple(str(item) for item in payload.get("key_points", ())),
+            key_points=(),
             generated_at=self._clock(),
             caller_name=caller_name,
             caller_name_confidence=(
@@ -228,8 +226,8 @@ class QwenReportGenerator(ReportGenerator):
                 ),
                 evidence=tuple(str(item) for item in emotional_payload.get("evidence", ())),
             ),
-            risks=tuple(str(item) for item in payload.get("risks", ())),
-            recommendations=tuple(str(item) for item in payload.get("recommendations", ())),
+            risks=(),
+            recommendations=(),
         )
 
     def _satisfaction(self, value: object) -> Satisfaction:

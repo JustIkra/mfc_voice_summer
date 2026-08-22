@@ -44,6 +44,10 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "Promise.all" in script
     assert "showModal()" in script
     assert "report.pdf" in script
+    assert "Эмоциональный окрас" in script
+    assert "Ключевые моменты" not in script
+    assert 'reportList("Риски"' not in script
+    assert 'reportList("Рекомендации"' not in script
     assert "new WebSocket(" not in script
 
 

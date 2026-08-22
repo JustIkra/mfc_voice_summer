@@ -728,7 +728,7 @@ dialog::backdrop {
 }
 
 .report-meta,
-.report-grid {
+.emotion-grid {
   display: grid;
   gap: 0.75rem;
 }
@@ -738,7 +738,6 @@ dialog::backdrop {
 }
 
 .report-meta > div,
-.report-card,
 .report-section {
   border: 1px solid var(--line);
   border-radius: 0.8rem;
@@ -757,24 +756,57 @@ dialog::backdrop {
   font-size: 0.75rem;
 }
 
-.report-section,
-.report-grid {
+.report-section {
   margin-top: 1rem;
 }
 
-.report-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.emotion-section {
+  border-left: 0.24rem solid var(--teal);
+  background: #f3f8f8;
 }
 
-.report-card h3,
 .report-section h3 {
   margin-bottom: 0.65rem;
   font-size: 1rem;
 }
 
-.report-card ul {
-  margin: 0;
-  padding-left: 1.1rem;
+.emotion-overall {
+  margin-bottom: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.emotion-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.emotion-role {
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 0.85rem;
+  background: white;
+}
+
+.emotion-role > strong {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.emotion-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.emotion-tag {
+  border-radius: 999rem;
+  padding: 0.3rem 0.55rem;
+  color: #285f60;
+  background: var(--teal-soft);
+  font-size: 0.72rem;
+  font-weight: 650;
 }
 
 .transcript {
@@ -849,7 +881,7 @@ dialog::backdrop {
 
   .metrics,
   .report-meta,
-  .report-grid {
+  .emotion-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -886,7 +918,7 @@ dialog::backdrop {
   .filters,
   .metrics,
   .report-meta,
-  .report-grid {
+  .emotion-grid {
     grid-template-columns: 1fr;
   }
 

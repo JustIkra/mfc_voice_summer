@@ -22,6 +22,16 @@ const labels = {
   client: "Клиент",
 };
 
+const emotionLabels = {
+  neutral: "Спокойствие",
+  happy: "Позитив",
+  angry: "Раздражение",
+  sad: "Грусть",
+  fearful: "Тревога",
+  disgusted: "Недовольство",
+  surprised: "Удивление",
+};
+
 const nodes = {
   form: document.querySelector("#filterForm"),
   dateFrom: document.querySelector("#dateFrom"),
@@ -277,6 +287,7 @@ function renderReport(report) {
   const caller = report.caller || {};
   const operator = report.operator || {};
   const analysis = report.analysis || {};
+  const emotional = analysis.emotional_assessment || {};
   const transcript = report.transcript?.segments || [];
   document.querySelector("#reportTitle").textContent = `Звонок ${call.id || ""}`;
   nodes.reportContent.innerHTML = `
@@ -289,10 +300,13 @@ function renderReport(report) {
       ${meta("Очередь", `${call.queue?.name || "—"} · ${call.queue?.extension || "—"}`)}
     </section>
     <section class="report-section"><h3>Итог разговора</h3><p>${escapeHtml(analysis.summary || "Нет данных")}</p></section>
-    <section class="report-grid">
-      ${reportList("Ключевые моменты", analysis.key_points)}
-      ${reportList("Риски", analysis.risks)}
-      ${reportList("Рекомендации", analysis.recommendations)}
+    <section class="report-section emotion-section">
+      <h3>Эмоциональный окрас</h3>
+      <p class="emotion-overall">${escapeHtml(emotional.overall || "Эмоциональный окрас не определён")}</p>
+      <div class="emotion-grid">
+        ${renderEmotionRole("Клиент", emotional.client_emotions)}
+        ${renderEmotionRole("Оператор", emotional.operator_emotions)}
+      </div>
     </section>
     <section class="report-section"><h3>Расшифровка</h3><div class="transcript">${transcript.map(renderTranscript).join("") || '<div class="empty">Расшифровка отсутствует.</div>'}</div></section>`;
 }
@@ -302,8 +316,17 @@ function renderTranscript(segment) {
   return `<article class="utterance"><span class="utterance-time">${start}</span><div><strong>${labels[segment.speaker] || "Роль не определена"}</strong><p>${escapeHtml(segment.text || "")}</p></div></article>`;
 }
 
-function reportList(title, items = []) {
-  return `<article class="report-card"><h3>${title}</h3>${items.length ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : '<p class="muted">Нет данных</p>'}</article>`;
+function renderEmotionRole(title, emotions = []) {
+  const values = [...new Set(emotions.map((value) => emotionLabel(value)))];
+  const tags = values.length
+    ? values.map((value) => `<span class="emotion-tag">${escapeHtml(value)}</span>`).join("")
+    : '<span class="emotion-tag muted">Не определён</span>';
+  return `<article class="emotion-role"><strong>${title}</strong><div class="emotion-tags">${tags}</div></article>`;
+}
+
+function emotionLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return emotionLabels[normalized] || String(value || "Не определён");
 }
 
 function meta(label, value) {

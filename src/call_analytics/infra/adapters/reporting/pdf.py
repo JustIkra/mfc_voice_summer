@@ -99,11 +99,16 @@ class ReportLabReportRenderer(ReportRenderer):
         story.extend([table, Spacer(1, 12)])
         sections = [
             ("Краткое содержание", report.summary),
-            ("Эмоциональная оценка", report.emotional_assessment.overall),
+            (
+                "Эмоциональный окрас",
+                _emotional_text(
+                    report.emotional_assessment.overall,
+                    report.emotional_assessment.client_emotions,
+                    report.emotional_assessment.operator_emotions,
+                ),
+            ),
             ("Доказательства решения вопроса", "\n".join(report.question_resolved.evidence)),
             ("Доказательства удовлетворённости", "\n".join(report.client_satisfaction.evidence)),
-            ("Риски", "\n".join(report.risks)),
-            ("Рекомендации", "\n".join(report.recommendations)),
         ]
         for name, value in sections:
             story.extend(
@@ -213,14 +218,7 @@ class ReportLabReportRenderer(ReportRenderer):
             )
         )
         story.extend([table, Spacer(1, 12)])
-        emotional = _mapping(analysis.get("emotional_assessment"))
-        sections = [
-            ("Краткое содержание", analysis.get("summary", "")),
-            ("Эмоциональная оценка", emotional.get("overall", "")),
-            ("Ключевые моменты", "\n".join(_strings(analysis.get("key_points")))),
-            ("Риски", "\n".join(_strings(analysis.get("risks")))),
-            ("Рекомендации", "\n".join(_strings(analysis.get("recommendations")))),
-        ]
+        sections = _payload_sections(analysis)
         for name, value in sections:
             story.extend(
                 [
@@ -271,3 +269,42 @@ def _strings(value: object) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, str | bytes):
         return []
     return [str(item) for item in value]
+
+
+def _payload_sections(analysis: Mapping[str, object]) -> list[tuple[str, object]]:
+    emotional = _mapping(analysis.get("emotional_assessment"))
+    return [
+        ("Краткое содержание", analysis.get("summary", "")),
+        (
+            "Эмоциональный окрас",
+            _emotional_text(
+                emotional.get("overall", ""),
+                emotional.get("client_emotions", ()),
+                emotional.get("operator_emotions", ()),
+            ),
+        ),
+    ]
+
+
+def _emotional_text(overall: object, client: object, operator: object) -> str:
+    return "\n".join(
+        [
+            str(overall).strip() or "Не определён",
+            f"Клиент: {_emotion_values(client)}",
+            f"Оператор: {_emotion_values(operator)}",
+        ]
+    )
+
+
+def _emotion_values(value: object) -> str:
+    labels = {
+        "neutral": "спокойствие",
+        "happy": "позитив",
+        "angry": "раздражение",
+        "sad": "грусть",
+        "fearful": "тревога",
+        "disgusted": "недовольство",
+        "surprised": "удивление",
+    }
+    values = [labels.get(item.strip().lower(), item) for item in _strings(value)]
+    return ", ".join(dict.fromkeys(values)) or "не определён"
