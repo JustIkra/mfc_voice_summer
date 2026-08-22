@@ -69,6 +69,7 @@ def _document(recording: CallRecording) -> FinalReportDocument:
         caller_name="Анна",
         caller_name_confidence=0.92,
         question_resolved=QuestionResolution(value="yes", confidence=0.9),
+        risks=("устаревший риск",),
     )
     return FinalReportDocument(
         recording=recording,
@@ -108,6 +109,11 @@ async def test_finalize_saves_report_and_done_status_atomically(tmp_path: Path) 
     assert payload is not None
     assert payload["operator"]["extension"] == "11198"
     assert payload["caller"]["name"] == "Анна"
+    with database.connect() as connection:
+        attention_required = connection.execute(
+            "SELECT attention_required FROM reports WHERE call_id = ?", (RID.value,)
+        ).fetchone()[0]
+    assert attention_required == 0
 
 
 async def test_finalize_rolls_back_report_when_status_update_fails(tmp_path: Path) -> None:

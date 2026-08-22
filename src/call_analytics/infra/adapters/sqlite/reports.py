@@ -46,9 +46,7 @@ class SqliteFinalReportRepository(FinalReportRepository):
         caller_name = caller.get("name")
         caller_source = caller.get("name_source")
         caller_confidence = float(cast(float | int | str, caller.get("name_confidence", 0.0)))
-        attention_required = int(
-            report.satisfaction is Satisfaction.DISSATISFIED or bool(report.risks)
-        )
+        attention_required = int(report.satisfaction is Satisfaction.DISSATISFIED)
         with self._database.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
