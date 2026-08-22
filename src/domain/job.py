@@ -30,6 +30,7 @@ class JobStatus(Enum):
     DONE = "done"
     FAILED = "failed"
     CANCELED = "canceled"
+    SKIPPED_EMPTY = "skipped_empty"
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +97,13 @@ class CallProcessingJob:
         if self.status is not JobStatus.RUNNING:
             raise InvalidJobTransition(f"нельзя пометить ошибку из статуса {self.status.name}")
         return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
+
+    def skip_empty(self) -> CallProcessingJob:
+        if self.status is not JobStatus.RUNNING:
+            raise InvalidJobTransition(
+                f"пропуск пустой записи возможен только из RUNNING, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.SKIPPED_EMPTY, last_error=None)
 
     def retry(self) -> CallProcessingJob:
         if self.status is not JobStatus.FAILED:

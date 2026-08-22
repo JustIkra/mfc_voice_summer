@@ -50,3 +50,18 @@ def test_call_report_contains_required_quality_fields() -> None:
     assert report.client_satisfaction.score_1_5 == 2
     assert report.emotional_assessment.client_emotions == ("angry",)
     assert report.risks == ("риск повторного обращения",)
+
+
+def test_call_report_can_carry_transcript_derived_caller_name() -> None:
+    report = CallReport(
+        recording_id=RecordingId("call-1"),
+        satisfaction=Satisfaction.NEUTRAL,
+        summary="Клиент представился в начале разговора.",
+        key_points=(),
+        generated_at=datetime(2026, 8, 22, 12, 0, tzinfo=timezone(timedelta(hours=3))),
+        caller_name="Анна",
+        caller_name_confidence=0.92,
+    )
+
+    assert report.caller_name == "Анна"
+    assert report.caller_name_confidence == 0.92

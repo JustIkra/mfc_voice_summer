@@ -102,3 +102,15 @@ def test_only_pending_job_can_be_canceled() -> None:
 def test_only_canceled_job_can_be_resumed() -> None:
     with pytest.raises(InvalidJobTransition):
         _job().resume()
+
+
+def test_running_job_can_finish_as_skipped_empty() -> None:
+    skipped = _job().start_stage(JobStage.TRANSCRIBE).skip_empty()
+
+    assert skipped.status is JobStatus.SKIPPED_EMPTY
+    assert skipped.next_stage() is JobStage.TRANSCRIBE
+
+
+def test_only_running_job_can_be_skipped_empty() -> None:
+    with pytest.raises(InvalidJobTransition):
+        _job().skip_empty()
