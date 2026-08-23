@@ -309,6 +309,62 @@ h1 {
   font-weight: 600;
 }
 
+.quality-ribbon.compact b,
+.resolution-grid b {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 400;
+}
+
+.resolution-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  min-height: 4.5rem;
+}
+
+.resolution-grid > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  text-align: center;
+}
+
+.resolution-grid strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.resolution-grid small {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.resolution-grid .yes {
+  color: white;
+  background: var(--green);
+}
+
+.resolution-grid .partial {
+  background: var(--amber);
+}
+
+.resolution-grid .no {
+  color: white;
+  background: var(--red);
+}
+
+.resolution-grid .unknown {
+  color: white;
+  background: var(--navy);
+}
+
 .quality-ribbon > span {
   display: flex;
   min-width: 0.5rem;
@@ -368,7 +424,7 @@ h1 {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(12rem, 1.2fr) auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(12rem, 1.2fr) auto;
   gap: 0.85rem;
   align-items: end;
   margin-top: 1rem;
@@ -482,13 +538,18 @@ select {
 }
 
 .quality-panel,
-.operators-panel {
+.resolution-panel {
   grid-column: span 2;
 }
 
-.quality-panel {
+.quality-panel,
+.resolution-panel {
   display: flex;
   flex-direction: column;
+}
+
+.operators-panel {
+  grid-column: 1 / -1;
 }
 
 .panel {
@@ -525,7 +586,7 @@ select {
 
 .operator-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -908,7 +969,7 @@ dialog::backdrop {
 
 @media (max-width: 1366px) {
   .operator-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -933,6 +994,7 @@ dialog::backdrop {
   }
 
   .quality-panel,
+  .resolution-panel,
   .operators-panel {
     grid-column: 1;
   }
@@ -973,6 +1035,10 @@ dialog::backdrop {
   .quality-ribbon.compact,
   .operator-list {
     grid-template-columns: 1fr;
+  }
+
+  .resolution-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .filter-actions,

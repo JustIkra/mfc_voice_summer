@@ -18,6 +18,7 @@ from domain import RecordingId
 
 _STATIC_DIR = Path(__file__).parent / "web_static"
 _SATISFACTION = Literal["satisfied", "neutral", "dissatisfied"]
+_RESOLUTION = Literal["yes", "partial", "no", "unknown"]
 
 
 @dataclass(slots=True)
@@ -57,6 +58,7 @@ def create_app(
         date_to: date | None = None,
         operator_id: int | None = None,
         satisfaction: _SATISFACTION | None = None,
+        question_resolved: _RESOLUTION | None = None,
         query: str = "",
     ) -> dict[str, object]:
         filters = _filters(
@@ -64,6 +66,7 @@ def create_app(
             date_to,
             operator_id,
             satisfaction,
+            question_resolved,
             query,
             state.clock(),
         )
@@ -75,6 +78,7 @@ def create_app(
         date_to: date | None = None,
         operator_id: int | None = None,
         satisfaction: _SATISFACTION | None = None,
+        question_resolved: _RESOLUTION | None = None,
         query: str = "",
     ) -> list[dict[str, object]]:
         filters = _filters(
@@ -82,6 +86,7 @@ def create_app(
             date_to,
             operator_id,
             satisfaction,
+            question_resolved,
             query,
             state.clock(),
         )
@@ -103,6 +108,7 @@ def create_app(
         date_to: date | None = None,
         operator_id: int | None = None,
         satisfaction: _SATISFACTION | None = None,
+        question_resolved: _RESOLUTION | None = None,
         query: str = "",
         page: Annotated[int, Query(ge=1)] = 1,
         page_size: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -112,6 +118,7 @@ def create_app(
             date_to,
             operator_id,
             satisfaction,
+            question_resolved,
             query,
             state.clock(),
         )
@@ -180,6 +187,7 @@ def _filters(
     date_to: date | None,
     operator_id: int | None,
     satisfaction: str | None,
+    question_resolved: str | None,
     query: str,
     now: datetime,
 ) -> DashboardFilter:
@@ -192,6 +200,7 @@ def _filters(
         date_to=datetime.combine(end_date, time.max, tzinfo=MSK),
         operator_id=operator_id,
         satisfaction=satisfaction,
+        question_resolved=question_resolved,
         query=query.strip(),
     )
 

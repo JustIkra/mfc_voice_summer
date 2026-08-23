@@ -1,5 +1,5 @@
 const state = {
-  filters: { dateFrom: "", dateTo: "", operatorId: "", satisfaction: "", query: "" },
+  filters: { dateFrom: "", dateTo: "", operatorId: "", satisfaction: "", resolution: "", query: "" },
   page: 1,
   pageSize: 50,
   summary: null,
@@ -38,6 +38,7 @@ const nodes = {
   dateTo: document.querySelector("#dateTo"),
   operator: document.querySelector("#operatorSelect"),
   satisfaction: document.querySelector("#satisfactionSelect"),
+  resolution: document.querySelector("#resolutionSelect"),
   search: document.querySelector("#callSearch"),
   journal: document.querySelector("#callJournal"),
   operators: document.querySelector("#operatorBoard"),
@@ -61,6 +62,7 @@ document.querySelector("#resetFilters").addEventListener("click", () => {
   initializeDates();
   nodes.operator.value = "";
   nodes.satisfaction.value = "";
+  nodes.resolution.value = "";
   nodes.search.value = "";
   readFilters();
   state.page = 1;
@@ -143,6 +145,7 @@ function buildParams({ includePage = false, includeOperator = true } = {}) {
     params.set("operator_id", state.filters.operatorId);
   }
   if (state.filters.satisfaction) params.set("satisfaction", state.filters.satisfaction);
+  if (state.filters.resolution) params.set("question_resolved", state.filters.resolution);
   if (state.filters.query) params.set("query", state.filters.query);
   if (includePage) {
     params.set("page", String(state.page));
@@ -157,6 +160,7 @@ function readFilters() {
     dateTo: nodes.dateTo.value,
     operatorId: nodes.operator.value,
     satisfaction: nodes.satisfaction.value,
+    resolution: nodes.resolution.value,
     query: nodes.search.value.trim(),
   };
 }
@@ -174,6 +178,7 @@ function renderSummary() {
   const summary = state.summary;
   const total = summary.total_calls;
   const satisfaction = summary.satisfaction;
+  const resolution = summary.resolution || { yes: 0, partial: 0, no: 0, unknown: 0 };
   const satisfiedPercent = percent(satisfaction.satisfied, total);
   const neutralPercent = percent(satisfaction.neutral, total);
   const dissatisfiedPercent = percent(satisfaction.dissatisfied, total);
@@ -187,9 +192,21 @@ function renderSummary() {
   setText("countGood", satisfaction.satisfied);
   setText("countNeutral", satisfaction.neutral);
   setText("countBad", satisfaction.dissatisfied);
+  setText("percentGood", `${satisfiedPercent}%`);
+  setText("percentNeutral", `${neutralPercent}%`);
+  setText("percentBad", `${dissatisfiedPercent}%`);
   setText("qualityGood", `${satisfiedPercent}% позитивный фон`);
   setText("qualityNeutral", `${neutralPercent}% нейтральный фон`);
   setText("qualityBad", `${dissatisfiedPercent}% негативный фон`);
+  setText("resolutionCount", `${total} отчётов`);
+  setText("resolutionYes", resolution.yes);
+  setText("resolutionPartial", resolution.partial);
+  setText("resolutionNo", resolution.no);
+  setText("resolutionUnknown", resolution.unknown);
+  setText("resolutionYesPercent", `${percent(resolution.yes, total)}%`);
+  setText("resolutionPartialPercent", `${percent(resolution.partial, total)}%`);
+  setText("resolutionNoPercent", `${percent(resolution.no, total)}%`);
+  setText("resolutionUnknownPercent", `${percent(resolution.unknown, total)}%`);
   document.querySelectorAll(".quality-ribbon").forEach((ribbon) => {
     ribbon.style.setProperty("--good-share", `${Math.max(satisfiedPercent, 1)}fr`);
     ribbon.style.setProperty("--neutral-share", `${Math.max(neutralPercent, 1)}fr`);

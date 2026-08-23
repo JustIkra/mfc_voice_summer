@@ -142,6 +142,7 @@ async def test_summary_and_operator_rows_exclude_failed_calls(tmp_path: Path) ->
     assert summary.average_duration_seconds == 180.0
     assert summary.attention_calls == 1
     assert summary.satisfaction == {"satisfied": 1, "neutral": 0, "dissatisfied": 1}
+    assert summary.resolution == {"yes": 1, "partial": 0, "no": 1, "unknown": 0}
     assert [(item.id, item.total_calls) for item in operators] == [(14, 1), (15, 1)]
 
 
@@ -162,7 +163,7 @@ async def test_processing_counts_include_non_report_jobs(tmp_path: Path) -> None
 async def test_list_calls_filters_pages_and_escapes_wildcards(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     request = CallPageRequest(
-        filters=DashboardFilter(DATE_FROM, DATE_TO, query="%"),
+        filters=DashboardFilter(DATE_FROM, DATE_TO, question_resolved="yes", query="%"),
         page=1,
         page_size=1,
     )

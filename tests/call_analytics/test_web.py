@@ -89,6 +89,7 @@ def build_client() -> TestClient:
         average_duration_seconds=180.0,
         attention_calls=1,
         satisfaction={"satisfied": 1, "neutral": 0, "dissatisfied": 1},
+        resolution={"yes": 1, "partial": 0, "no": 1, "unknown": 0},
     )
     operators = [
         OperatorSummary(
@@ -142,6 +143,7 @@ def test_dashboard_summary_and_operator_endpoints() -> None:
         "average_duration_seconds": 180.0,
         "attention_calls": 1,
         "satisfaction": {"satisfied": 1, "neutral": 0, "dissatisfied": 1},
+        "resolution": {"yes": 1, "partial": 0, "no": 1, "unknown": 0},
     }
     assert operators.json()[0]["operator_id"] == 14
     assert operators.json()[0]["operator_name"] == "Оператор"
@@ -182,6 +184,7 @@ def test_missing_report_and_invalid_filters_are_explicit() -> None:
         == 422
     )
     assert client.get("/api/calls", params={"satisfaction": "excellent"}).status_code == 422
+    assert client.get("/api/calls", params={"question_resolved": "maybe"}).status_code == 422
     assert client.get("/api/calls", params={"page_size": 101}).status_code == 422
 
 

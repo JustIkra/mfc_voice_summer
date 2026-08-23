@@ -49,6 +49,7 @@
         <label>Дата по<input id="dateTo" type="date" /></label>
         <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
         <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
+        <label>Вопрос решён<select id="resolutionSelect"><option value="">Все результаты</option><option value="yes">Да</option><option value="partial">Частично</option><option value="no">Нет</option><option value="unknown">Не определено</option></select></label>
         <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
         <div class="filter-actions">
           <button class="button primary" type="submit">Показать отчёт</button>
@@ -67,9 +68,19 @@
         <article class="panel quality-panel">
           <div class="panel-header"><div><h2>Эмоциональный фон клиентов</h2><p>Отдельно от результата обращения</p></div><span class="utility" id="qualityCount">0 отчётов</span></div>
           <div class="quality-ribbon compact" aria-hidden="true">
-            <span class="good"><strong id="countGood">0</strong><small>Удовлетворены</small></span>
-            <span class="neutral"><strong id="countNeutral">0</strong><small>Нейтрально</small></span>
-            <span class="bad"><strong id="countBad">0</strong><small>Негативно</small></span>
+            <span class="good"><strong id="countGood">0</strong><small><b id="percentGood">0%</b> · Позитивно</small></span>
+            <span class="neutral"><strong id="countNeutral">0</strong><small><b id="percentNeutral">0%</b> · Нейтрально</small></span>
+            <span class="bad"><strong id="countBad">0</strong><small><b id="percentBad">0%</b> · Негативно</small></span>
+          </div>
+        </article>
+
+        <article class="panel resolution-panel">
+          <div class="panel-header"><div><h2>Результат консультации</h2><p>Независимо от эмоций клиента</p></div><span class="utility" id="resolutionCount">0 отчётов</span></div>
+          <div class="resolution-grid" aria-label="Распределение результата консультации">
+            <span class="yes"><strong id="resolutionYes">0</strong><small><b id="resolutionYesPercent">0%</b> · Да</small></span>
+            <span class="partial"><strong id="resolutionPartial">0</strong><small><b id="resolutionPartialPercent">0%</b> · Частично</small></span>
+            <span class="no"><strong id="resolutionNo">0</strong><small><b id="resolutionNoPercent">0%</b> · Нет</small></span>
+            <span class="unknown"><strong id="resolutionUnknown">0</strong><small><b id="resolutionUnknownPercent">0%</b> · Не определено</small></span>
           </div>
         </article>
 

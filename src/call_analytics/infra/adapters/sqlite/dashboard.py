@@ -48,7 +48,13 @@ class SqliteDashboardRepository(DashboardRepository):
                        COALESCE(SUM(CASE WHEN r.satisfaction = 'neutral' THEN 1 ELSE 0 END), 0)
                            AS neutral_calls,
                        COALESCE(SUM(CASE WHEN r.satisfaction = 'dissatisfied' THEN 1 ELSE 0 END), 0)
-                           AS dissatisfied_calls
+                           AS dissatisfied_calls,
+                       COALESCE(SUM(CASE WHEN r.question_resolved = 'partial' THEN 1 ELSE 0 END), 0)
+                           AS partially_resolved_calls,
+                       COALESCE(SUM(CASE WHEN r.question_resolved = 'no' THEN 1 ELSE 0 END), 0)
+                           AS unresolved_calls,
+                       COALESCE(SUM(CASE WHEN r.question_resolved NOT IN ('yes', 'partial', 'no')
+                           THEN 1 ELSE 0 END), 0) AS unknown_resolution_calls
                 FROM calls c
                 JOIN reports r ON r.call_id = c.call_id
                 WHERE {where}
@@ -65,6 +71,12 @@ class SqliteDashboardRepository(DashboardRepository):
                 "satisfied": int(row["satisfied_calls"]),
                 "neutral": int(row["neutral_calls"]),
                 "dissatisfied": int(row["dissatisfied_calls"]),
+            },
+            resolution={
+                "yes": int(row["resolved_calls"]),
+                "partial": int(row["partially_resolved_calls"]),
+                "no": int(row["unresolved_calls"]),
+                "unknown": int(row["unknown_resolution_calls"]),
             },
         )
 
@@ -151,6 +163,9 @@ def _where(filters: DashboardFilter) -> tuple[str, list[object]]:
     if filters.satisfaction:
         clauses.append("r.satisfaction = ?")
         parameters.append(filters.satisfaction)
+    if filters.question_resolved:
+        clauses.append("r.question_resolved = ?")
+        parameters.append(filters.question_resolved)
     query = filters.query.strip()
     if query:
         escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

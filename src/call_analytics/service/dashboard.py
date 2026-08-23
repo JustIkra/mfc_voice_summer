@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -21,6 +21,7 @@ class DashboardFilter:
     date_to: datetime
     operator_id: int | None = None
     satisfaction: str | None = None
+    question_resolved: str | None = None
     query: str = ""
 
 
@@ -38,6 +39,9 @@ class DashboardSummary:
     average_duration_seconds: float
     attention_calls: int
     satisfaction: Mapping[str, int]
+    resolution: Mapping[str, int] = field(
+        default_factory=lambda: {"yes": 0, "partial": 0, "no": 0, "unknown": 0}
+    )
 
 
 @dataclass(frozen=True, slots=True)
