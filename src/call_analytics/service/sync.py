@@ -71,13 +71,21 @@ class GrandstreamSyncService:
                 try:
                     outcome = await self._ingest(call, now)
                 except TelephonyGatewayError as error:
-                    await self._calls.register_failed(
-                        call,
-                        error.kind,
-                        "telephony recording is unavailable",
-                        now,
-                    )
-                    outcome = IngestOutcome.FAILED
+                    if error.kind == "NOT_FOUND":
+                        await self._calls.register_skipped(
+                            call,
+                            "telephony recording is unavailable",
+                            now,
+                        )
+                        outcome = IngestOutcome.SKIPPED
+                    else:
+                        await self._calls.register_failed(
+                            call,
+                            error.kind,
+                            "telephony recording request failed",
+                            now,
+                        )
+                        outcome = IngestOutcome.FAILED
                 if outcome is IngestOutcome.DUPLICATE:
                     continue
                 discovered += 1

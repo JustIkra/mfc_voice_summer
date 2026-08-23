@@ -241,7 +241,7 @@ async def test_unanswered_call_without_recording_is_skipped_not_failed() -> None
     assert queue.published == ()
 
 
-async def test_missing_recording_fails_only_one_call_and_continues_batch() -> None:
+async def test_missing_recording_skips_only_one_call_and_continues_batch() -> None:
     missing = _call()
     available = replace(
         missing,
@@ -262,7 +262,7 @@ async def test_missing_recording_fails_only_one_call_and_continues_batch() -> No
 
     result = await service.run_once(NOW)
 
-    assert result == SyncResult(discovered=2, queued=1, skipped=0, failed=1)
-    assert await calls.status(missing.id) is JobStatus.FAILED
+    assert result == SyncResult(discovered=2, queued=1, skipped=1, failed=0)
+    assert await calls.status(missing.id) is JobStatus.SKIPPED_EMPTY
     assert await calls.status(available.id) is JobStatus.PENDING
     assert queue.published == (available.id,)
