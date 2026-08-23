@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from call_analytics.service.ports import (
@@ -140,6 +140,7 @@ class InMemoryDashboardRepository(DashboardRepository):
         summary: DashboardSummary | None = None,
         operators: Sequence[OperatorSummary] = (),
         calls: Sequence[CallListItem] = (),
+        processing: Mapping[str, int] | None = None,
     ) -> None:
         self._summary = summary or DashboardSummary(
             total_calls=0,
@@ -150,6 +151,7 @@ class InMemoryDashboardRepository(DashboardRepository):
         )
         self._operators = list(operators)
         self._calls = list(calls)
+        self._processing = dict(processing or {})
 
     async def summary(self, filters: DashboardFilter) -> DashboardSummary:
         del filters
@@ -168,6 +170,9 @@ class InMemoryDashboardRepository(DashboardRepository):
             page_size=request.page_size,
             total_items=len(self._calls),
         )
+
+    async def processing_counts(self) -> Mapping[str, int]:
+        return self._processing
 
 
 class InMemorySyncRunRepository(SyncRunRepository):

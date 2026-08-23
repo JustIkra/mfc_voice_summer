@@ -26,6 +26,9 @@ def test_dashboard_has_approved_structure_without_recording_controls() -> None:
     ):
         assert f'id="{element_id}"' in html
     assert 'class="quality-legend"' in html
+    assert "Эмоция клиента" in html
+    assert "Вопрос решён" in html
+    assert 'colspan="9"' in html
     assert "<audio" not in html.lower()
     assert "upload" not in html.lower()
     assert "прослуш" not in html.lower()
@@ -44,6 +47,8 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "Promise.all" in script
     assert "showModal()" in script
     assert "report.pdf" in script
+    assert "processing.pending" in script
+    assert "Очередь:" in script
     assert "Эмоциональный окрас" in script
     assert "Ключевые моменты" not in script
     assert 'reportList("Риски"' not in script

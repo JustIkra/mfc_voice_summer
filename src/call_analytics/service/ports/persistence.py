@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from call_analytics.service.dashboard import (
@@ -114,6 +114,10 @@ class DashboardRepository(ABC):
 
     @abstractmethod
     async def list_calls(self, request: CallPageRequest) -> CallPage:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def processing_counts(self) -> Mapping[str, int]:
         raise NotImplementedError
 
 

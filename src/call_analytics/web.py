@@ -152,11 +152,13 @@ def create_app(
 
     @app.get("/api/sync/status")
     async def sync_status() -> dict[str, object]:
+        processing = dict(await dashboard().processing_counts())
         status = await dashboard().sync_status()
         if status is None:
-            return {"status": "never"}
+            return {"status": "never", "processing": processing}
         return {
             **asdict(status),
+            "processing": processing,
             "window_start": status.window_start.isoformat(),
             "window_end": status.window_end.isoformat(),
             "started_at": status.started_at.isoformat(),

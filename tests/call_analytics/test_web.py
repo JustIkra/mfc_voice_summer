@@ -117,7 +117,12 @@ def build_client() -> TestClient:
         )
     ]
     service = DashboardService(
-        dashboard=InMemoryDashboardRepository(summary, operators, calls),
+        dashboard=InMemoryDashboardRepository(
+            summary,
+            operators,
+            calls,
+            processing={"pending": 3, "running": 1, "done": 2, "failed": 1},
+        ),
         reports=FakeFinalReportRepository(),
         sync_runs=InMemorySyncRunRepository(),
     )
@@ -193,4 +198,7 @@ def test_sync_status_reports_never_before_first_run() -> None:
     response = build_client().get("/api/sync/status")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "never"}
+    assert response.json() == {
+        "status": "never",
+        "processing": {"pending": 3, "running": 1, "done": 2, "failed": 1},
+    }

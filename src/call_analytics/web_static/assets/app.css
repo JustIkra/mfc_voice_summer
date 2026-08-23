@@ -163,6 +163,7 @@ p {
   padding: 0.55rem 0.9rem;
   color: var(--ink);
   background: rgba(249, 251, 251, 0.78);
+  text-align: left;
   cursor: pointer;
 }
 
@@ -584,7 +585,7 @@ tbody tr:hover {
 
 table {
   width: 100%;
-  min-width: 70rem;
+  min-width: 78rem;
   border-collapse: collapse;
   background: white;
 }
@@ -641,6 +642,26 @@ td {
 .pill.dissatisfied {
   color: #8d3440;
   background: #f2dce0;
+}
+
+.pill.resolution.yes {
+  color: #285f48;
+  background: #dbede4;
+}
+
+.pill.resolution.partial {
+  color: #805c18;
+  background: #f6e8c8;
+}
+
+.pill.resolution.no {
+  color: #8d3440;
+  background: #f2dce0;
+}
+
+.pill.resolution.unknown {
+  color: var(--muted);
+  background: var(--mist);
 }
 
 .report-link {
@@ -728,6 +749,7 @@ dialog::backdrop {
 }
 
 .report-meta,
+.outcome-grid,
 .emotion-grid {
   display: grid;
   gap: 0.75rem;
@@ -735,6 +757,28 @@ dialog::backdrop {
 
 .report-meta {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.outcome-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.outcome-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  padding: 0.85rem 1rem;
+  background: white;
+}
+
+.outcome-card > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
 }
 
 .report-meta > div,
@@ -838,12 +882,14 @@ dialog::backdrop {
   right: 1.2rem;
   bottom: 1.2rem;
   z-index: 20;
-  max-width: min(26rem, calc(100% - 2.4rem));
+  max-width: min(22rem, calc(100% - 2.4rem));
   border-radius: 0.75rem;
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.8rem;
   color: white;
   background: var(--navy);
   box-shadow: var(--shadow);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 @media (max-width: 1200px) {
@@ -881,6 +927,7 @@ dialog::backdrop {
 
   .metrics,
   .report-meta,
+  .outcome-grid,
   .emotion-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -918,6 +965,7 @@ dialog::backdrop {
   .filters,
   .metrics,
   .report-meta,
+  .outcome-grid,
   .emotion-grid {
     grid-template-columns: 1fr;
   }

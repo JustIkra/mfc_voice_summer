@@ -112,6 +112,9 @@ class DashboardService:
     async def report(self, recording_id: RecordingId) -> dict[str, object] | None:
         return await self._reports.load_payload(recording_id)
 
+    async def processing_counts(self) -> Mapping[str, int]:
+        return await self._dashboard.processing_counts()
+
     async def sync_status(self) -> SyncStatus | None:
         return await self._sync_runs.last()
 

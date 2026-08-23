@@ -13,6 +13,7 @@ from call_analytics.service.ports import (
     RecordingWorkspace,
     SyncRunRepository,
     TelephonyGateway,
+    TelephonyGatewayError,
 )
 from domain import CallProcessingJob, CallRecording, DiscoveredCall, Period
 
@@ -67,7 +68,16 @@ class GrandstreamSyncService:
             for call in calls:
                 if call.queue.extension != self._queue_extension:
                     continue
-                outcome = await self._ingest(call, now)
+                try:
+                    outcome = await self._ingest(call, now)
+                except TelephonyGatewayError as error:
+                    await self._calls.register_failed(
+                        call,
+                        error.kind,
+                        "telephony recording is unavailable",
+                        now,
+                    )
+                    outcome = IngestOutcome.FAILED
                 if outcome is IngestOutcome.DUPLICATE:
                     continue
                 discovered += 1
@@ -83,7 +93,11 @@ class GrandstreamSyncService:
             for recording in await self._calls.list_retryable(self._max_attempts):
                 if limit is not None and queued >= limit:
                     break
-                outcome = await self._retry(recording)
+                try:
+                    outcome = await self._retry(recording)
+                except TelephonyGatewayError:
+                    failed += 1
+                    continue
                 if outcome is IngestOutcome.QUEUED:
                     queued += 1
                 elif outcome is IngestOutcome.SKIPPED:

@@ -30,6 +30,9 @@ class SqliteDashboardRepository(DashboardRepository):
     async def list_calls(self, request: CallPageRequest) -> CallPage:
         return await asyncio.to_thread(self._list_calls, request)
 
+    async def processing_counts(self) -> dict[str, int]:
+        return await asyncio.to_thread(self._processing_counts)
+
     def _summary(self, filters: DashboardFilter) -> DashboardSummary:
         where, parameters = _where(filters)
         with self._database.connect() as connection:
@@ -121,6 +124,22 @@ class SqliteDashboardRepository(DashboardRepository):
             page_size=request.page_size,
             total_items=int(total_row["total_items"]),
         )
+
+    def _processing_counts(self) -> dict[str, int]:
+        counts = {
+            "pending": 0,
+            "running": 0,
+            "done": 0,
+            "failed": 0,
+            "skipped_empty": 0,
+        }
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                "SELECT status, COUNT(*) AS count FROM calls GROUP BY status"
+            ).fetchall()
+        for row in rows:
+            counts[str(row["status"])] = int(row["count"])
+        return counts
 
 
 def _where(filters: DashboardFilter) -> tuple[str, list[object]]:

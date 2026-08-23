@@ -11,9 +11,9 @@ const state = {
 };
 
 const labels = {
-  satisfied: "Удовлетворён",
+  satisfied: "Позитивно",
   neutral: "Нейтрально",
-  dissatisfied: "Не удовлетворён",
+  dissatisfied: "Негативно",
   yes: "Да",
   no: "Нет",
   partial: "Частично",
@@ -176,9 +176,9 @@ function renderSummary() {
   setText("countGood", satisfaction.satisfied);
   setText("countNeutral", satisfaction.neutral);
   setText("countBad", satisfaction.dissatisfied);
-  setText("qualityGood", `${satisfiedPercent}% удовлетворены`);
-  setText("qualityNeutral", `${neutralPercent}% нейтрально`);
-  setText("qualityBad", `${dissatisfiedPercent}% негативно`);
+  setText("qualityGood", `${satisfiedPercent}% позитивный фон`);
+  setText("qualityNeutral", `${neutralPercent}% нейтральный фон`);
+  setText("qualityBad", `${dissatisfiedPercent}% негативный фон`);
   document.querySelectorAll(".quality-ribbon").forEach((ribbon) => {
     ribbon.style.setProperty("--good-share", `${Math.max(satisfiedPercent, 1)}fr`);
     ribbon.style.setProperty("--neutral-share", `${Math.max(neutralPercent, 1)}fr`);
@@ -225,7 +225,7 @@ function renderOperators() {
 function renderCalls() {
   setText("journalCount", `${state.totalItems} звонков`);
   if (!state.calls.length) {
-    nodes.journal.innerHTML = '<tr><td colspan="8"><div class="empty">За выбранный период готовых отчётов нет.</div></td></tr>';
+    nodes.journal.innerHTML = '<tr><td colspan="9"><div class="empty">За выбранный период готовых отчётов нет.</div></td></tr>';
     return;
   }
   nodes.journal.innerHTML = state.calls
@@ -239,6 +239,7 @@ function renderCalls() {
           <td>${escapeHtml(call.summary)}</td>
           <td class="id">${formatDuration(call.duration_seconds)}</td>
           <td><span class="pill ${call.satisfaction}">${labels[call.satisfaction] || "Не определено"}</span></td>
+          <td><span class="pill resolution ${call.question_resolved}">${labels[call.question_resolved] || "Не определено"}</span></td>
           <td><button class="report-link" type="button" data-call-id="${escapeHtml(call.call_id)}">Открыть →</button></td>
         </tr>`,
     )
@@ -257,15 +258,29 @@ function renderPagination() {
 
 function renderSync(sync) {
   const button = document.querySelector("#syncStatus");
+  const processing = sync.processing || {};
+  const pending = Number(processing.pending || 0);
+  const running = Number(processing.running || 0);
+  const active = pending + running;
+  const processingText = `Готово: ${processing.done || 0}; ожидают: ${pending}; обрабатываются: ${running}; ошибок: ${processing.failed || 0}`;
   if (sync.status === "never") {
-    button.textContent = "Синхронизация не запускалась";
-    button.title = "Первый запуск ещё не выполнялся";
+    button.textContent = active ? `Очередь: ${active}` : "Синхронизация не запускалась";
+    button.title = processingText;
     button.classList.remove("failed");
     return;
   }
   const stamp = sync.finished_at || sync.started_at;
-  button.textContent = sync.status === "running" ? "Идёт синхронизация" : `Обновлено ${formatDateTime(stamp)}`;
-  button.title = `Найдено: ${sync.discovered}; в очереди: ${sync.queued}; пропущено: ${sync.skipped}; ошибок: ${sync.failed}`;
+  if (active) {
+    button.textContent = `Очередь: ${active}`;
+  } else if (sync.status === "running") {
+    button.textContent = "Получение звонков";
+  } else if (sync.status === "failed") {
+    button.textContent = "Синхронизация прервана";
+  } else {
+    button.textContent = `Обновлено ${formatDateTime(stamp)}`;
+  }
+  const runText = `Последний запуск: найдено ${sync.discovered}; загружено ${sync.queued}; пропущено ${sync.skipped}; ошибок ${sync.failed}`;
+  button.title = `${processingText}. ${runText}`;
   button.classList.toggle("failed", sync.status === "failed");
 }
 
@@ -288,6 +303,8 @@ function renderReport(report) {
   const operator = report.operator || {};
   const analysis = report.analysis || {};
   const emotional = analysis.emotional_assessment || {};
+  const satisfaction = analysis.client_satisfaction?.value || analysis.satisfaction || "unknown";
+  const resolution = analysis.question_resolved?.value || "unknown";
   const transcript = report.transcript?.segments || [];
   document.querySelector("#reportTitle").textContent = `Звонок ${call.id || ""}`;
   nodes.reportContent.innerHTML = `
@@ -298,6 +315,10 @@ function renderReport(report) {
       ${meta("Длительность", formatDuration(call.duration_seconds))}
       ${meta("Файл", (call.recording_filenames || []).join(", ") || "—")}
       ${meta("Очередь", `${call.queue?.name || "—"} · ${call.queue?.extension || "—"}`)}
+    </section>
+    <section class="outcome-grid" aria-label="Результат и эмоциональная оценка">
+      ${outcome("Эмоция клиента", labels[satisfaction] || "Не определено", satisfaction)}
+      ${outcome("Вопрос решён", labels[resolution] || "Не определено", `resolution ${resolution}`)}
     </section>
     <section class="report-section"><h3>Итог разговора</h3><p>${escapeHtml(analysis.summary || "Нет данных")}</p></section>
     <section class="report-section emotion-section">
@@ -333,17 +354,21 @@ function meta(label, value) {
   return `<div><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`;
 }
 
+function outcome(label, value, className) {
+  return `<article class="outcome-card"><span>${label}</span><strong class="pill ${className}">${escapeHtml(value)}</strong></article>`;
+}
+
 function closeReport() {
   nodes.dialog.close();
   state.selectedCallId = null;
 }
 
 function renderLoading() {
-  nodes.journal.innerHTML = '<tr><td colspan="8"><div class="empty">Обновление данных…</div></td></tr>';
+  nodes.journal.innerHTML = '<tr><td colspan="9"><div class="empty">Обновление данных…</div></td></tr>';
 }
 
 function renderError(message) {
-  nodes.journal.innerHTML = `<tr><td colspan="8"><div class="error">${escapeHtml(message)}</div></td></tr>`;
+  nodes.journal.innerHTML = `<tr><td colspan="9"><div class="error">${escapeHtml(message)}</div></td></tr>`;
 }
 
 async function requestJson(url, signal) {

@@ -150,6 +150,8 @@ class ReportLabReportRenderer(ReportRenderer):
         caller = _mapping(payload.get("caller"))
         operator = _mapping(payload.get("operator"))
         analysis = _mapping(payload.get("analysis"))
+        resolution = _mapping(analysis.get("question_resolved"))
+        client_satisfaction = _mapping(analysis.get("client_satisfaction"))
         transcript = _mapping(payload.get("transcript"))
         buffer = BytesIO()
         font = self._register_font(pdfmetrics, TTFont)
@@ -197,6 +199,11 @@ class ReportLabReportRenderer(ReportRenderer):
                 f"{operator.get('extension', '')}",
             ),
             ("Звонящий", f"{caller.get('name') or 'Имя не определено'} / {caller.get('id', '')}"),
+            (
+                "Эмоция клиента",
+                _client_emotion(client_satisfaction.get("value", analysis.get("satisfaction"))),
+            ),
+            ("Вопрос решён", _resolution(resolution.get("value"))),
         ]
         table = Table(
             [
@@ -308,3 +315,19 @@ def _emotion_values(value: object) -> str:
     }
     values = [labels.get(item.strip().lower(), item) for item in _strings(value)]
     return ", ".join(dict.fromkeys(values)) or "не определён"
+
+
+def _client_emotion(value: object) -> str:
+    return {
+        "satisfied": "позитивная",
+        "neutral": "нейтральная",
+        "dissatisfied": "негативная",
+    }.get(str(value).strip().lower(), "не определена")
+
+
+def _resolution(value: object) -> str:
+    return {
+        "yes": "да",
+        "partial": "частично",
+        "no": "нет",
+    }.get(str(value).strip().lower(), "не определено")

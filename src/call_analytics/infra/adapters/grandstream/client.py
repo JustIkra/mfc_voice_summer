@@ -14,7 +14,11 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol, cast
 
 from call_analytics.infra.adapters.grandstream.cdr import parse_accounts, parse_cdr_page
-from call_analytics.service.ports import TelephonyAccount, TelephonyGateway
+from call_analytics.service.ports import (
+    TelephonyAccount,
+    TelephonyGateway,
+    TelephonyGatewayError,
+)
 from domain import DiscoveredCall, Period
 
 LOGGER = logging.getLogger(__name__)
@@ -39,10 +43,10 @@ class GrandstreamTransport(Protocol):
     ) -> GrandstreamHttpResponse: ...
 
 
-class GrandstreamError(RuntimeError):
-    def __init__(self, status: int | None, message: str) -> None:
+class GrandstreamError(TelephonyGatewayError):
+    def __init__(self, status: int | None, message: str, kind: str | None = None) -> None:
         self.status = status
-        super().__init__(message)
+        super().__init__(kind or _error_kind(status), message)
 
 
 class UrllibGrandstreamTransport:
@@ -86,7 +90,11 @@ class UrllibGrandstreamTransport:
                 body=error.read(),
             )
         except (TimeoutError, urllib.error.URLError) as error:
-            raise GrandstreamError(None, "Grandstream transport request failed") from error
+            raise GrandstreamError(
+                None,
+                "Grandstream transport request failed",
+                kind="CONNECTION",
+            ) from error
 
 
 class GrandstreamClient(TelephonyGateway):
@@ -317,6 +325,16 @@ def _raise_for_status(action: str, payload: Mapping[str, object] | None) -> None
     status = _status(payload)
     if status != 0:
         raise GrandstreamError(status, f"Grandstream {action} failed with status {status}")
+
+
+def _error_kind(status: int | None) -> str:
+    if status == -16:
+        return "NOT_FOUND"
+    if status == -45:
+        return "RATE_LIMIT"
+    if status in _AUTH_STATUSES:
+        return "AUTH"
+    return "SERVER"
 
 
 __all__ = [

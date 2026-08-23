@@ -26,6 +26,12 @@ class InvalidRecordingError(ValueError):
     pass
 
 
+class TelephonyGatewayError(RuntimeError):
+    def __init__(self, kind: str, message: str) -> None:
+        self.kind = kind
+        super().__init__(message)
+
+
 class TelephonyGateway(ABC):
     @abstractmethod
     async def list_accounts(self) -> Sequence[TelephonyAccount]:
@@ -76,4 +82,5 @@ __all__ = [
     "RecordingWorkspace",
     "TelephonyAccount",
     "TelephonyGateway",
+    "TelephonyGatewayError",
 ]

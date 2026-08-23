@@ -24,7 +24,7 @@
           <div>
             <p class="eyebrow">Качество линии / выбранный период</p>
             <h1 id="pageTitle">Каждый звонок — понятный результат</h1>
-            <p class="hero-lead">Сводка по работе отдела, удовлетворённости клиентов и решениям операторов. В журнале доступны отчёты и полные расшифровки.</p>
+            <p class="hero-lead">Сводка по работе отдела, эмоциональному фону клиентов и результатам обращений. В журнале доступны отчёты и полные расшифровки.</p>
           </div>
           <div class="hero-counter">
             <strong id="heroTotal">0</strong>
@@ -48,7 +48,7 @@
         <label>Дата с<input id="dateFrom" type="date" /></label>
         <label>Дата по<input id="dateTo" type="date" /></label>
         <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
-        <label>Оценка<select id="satisfactionSelect"><option value="">Все оценки</option><option value="satisfied">Удовлетворён</option><option value="neutral">Нейтрально</option><option value="dissatisfied">Не удовлетворён</option></select></label>
+        <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
         <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
         <div class="filter-actions">
           <button class="button primary" type="submit">Показать отчёт</button>
@@ -60,12 +60,12 @@
         <article class="metric"><span>Готовых отчётов</span><strong id="metricTotal">0</strong><small>пустые записи исключены</small></article>
         <article class="metric"><span>Вопрос решён</span><strong id="metricResolved">0%</strong><small id="metricResolvedCount">0 разговоров</small></article>
         <article class="metric warn"><span>Средняя длительность</span><strong id="metricDuration">00:00</strong><small>минуты и секунды</small></article>
-        <article class="metric danger"><span>Требуют внимания</span><strong id="metricAttention">0</strong><small>негативная оценка разговора</small></article>
+        <article class="metric danger"><span>Негативный фон</span><strong id="metricAttention">0</strong><small>эмоциональная оценка клиента</small></article>
       </section>
 
       <section class="dashboard-grid">
         <article class="panel quality-panel">
-          <div class="panel-header"><div><h2>Удовлетворённость по отделу</h2><p>Результаты за выбранный период</p></div><span class="utility" id="qualityCount">0 отчётов</span></div>
+          <div class="panel-header"><div><h2>Эмоциональный фон клиентов</h2><p>Отдельно от результата обращения</p></div><span class="utility" id="qualityCount">0 отчётов</span></div>
           <div class="quality-ribbon compact" aria-hidden="true">
             <span class="good"><strong id="countGood">0</strong><small>Удовлетворены</small></span>
             <span class="neutral"><strong id="countNeutral">0</strong><small>Нейтрально</small></span>
@@ -82,8 +82,8 @@
           <div class="panel-header"><div><h2>Журнал звонков</h2><p>Отчёты и расшифровки без хранения исходных файлов</p></div><span class="utility" id="journalCount">0 звонков</span></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Дата и время</th><th>ID звонка</th><th>Оператор</th><th>Звонящий</th><th>Тема</th><th>Длит.</th><th>Оценка</th><th>Отчёт</th></tr></thead>
-              <tbody id="callJournal"><tr><td colspan="8"><div class="empty">Загрузка данных…</div></td></tr></tbody>
+              <thead><tr><th>Дата и время</th><th>ID звонка</th><th>Оператор</th><th>Звонящий</th><th>Тема</th><th>Длит.</th><th>Эмоция клиента</th><th>Вопрос решён</th><th>Отчёт</th></tr></thead>
+              <tbody id="callJournal"><tr><td colspan="9"><div class="empty">Загрузка данных…</div></td></tr></tbody>
             </table>
           </div>
           <nav class="pagination" id="pagination" aria-label="Страницы журнала" hidden></nav>

@@ -19,6 +19,7 @@ from call_analytics.service.ports import (
     RecordingWorkspace,
     TelephonyAccount,
     TelephonyGateway,
+    TelephonyGatewayError,
 )
 from domain import (
     AudioBlob,
@@ -56,7 +57,11 @@ def _call(operator: OperatorIdentity | None = None) -> DiscoveredCall:
 
 
 class FakeTelephonyGateway(TelephonyGateway):
-    def __init__(self, calls: Sequence[DiscoveredCall], recordings: dict[str, bytes]) -> None:
+    def __init__(
+        self,
+        calls: Sequence[DiscoveredCall],
+        recordings: dict[str, bytes | TelephonyGatewayError],
+    ) -> None:
         self.calls = list(calls)
         self.recordings = recordings
         self.requested_period: Period | None = None
@@ -76,12 +81,14 @@ class FakeTelephonyGateway(TelephonyGateway):
         return self.calls
 
     async def recording_files(self, acct_id: str) -> tuple[str, ...]:
-        assert acct_id == "901"
-        return ("2026-08/call.wav",)
+        return ("2026-08/available.wav",) if acct_id == "902" else ("2026-08/call.wav",)
 
     async def download_recording(self, filename: str) -> bytes:
         self.download_count += 1
-        return self.recordings[filename]
+        value = self.recordings[filename]
+        if isinstance(value, TelephonyGatewayError):
+            raise value
+        return value
 
     async def close(self) -> None:
         self.closed = True
@@ -209,3 +216,30 @@ async def test_call_without_resolved_operator_is_failed_without_download() -> No
     assert await calls.status(RID) is JobStatus.FAILED
     assert gateway.download_count == 0
     assert queue.published == ()
+
+
+async def test_missing_recording_fails_only_one_call_and_continues_batch() -> None:
+    missing = _call()
+    available = replace(
+        missing,
+        id=RecordingId("cdr:group-002"),
+        source_recording=SourceRecordingIdentity(
+            acct_id="902",
+            filenames=("2026-08/available.wav",),
+        ),
+    )
+    gateway = FakeTelephonyGateway(
+        [missing, available],
+        {
+            "2026-08/call.wav": TelephonyGatewayError("NOT_FOUND", "hidden"),
+            "2026-08/available.wav": b"RIFFdemo",
+        },
+    )
+    service, calls, _, queue, _ = _build_service(gateway)
+
+    result = await service.run_once(NOW)
+
+    assert result == SyncResult(discovered=2, queued=1, skipped=0, failed=1)
+    assert await calls.status(missing.id) is JobStatus.FAILED
+    assert await calls.status(available.id) is JobStatus.PENDING
+    assert queue.published == (available.id,)

@@ -46,6 +46,7 @@ from call_analytics.service.ports.telephony import (
     RecordingWorkspace,
     TelephonyAccount,
     TelephonyGateway,
+    TelephonyGatewayError,
 )
 
 __all__ = [
@@ -86,6 +87,7 @@ __all__ = [
     "SyncStatus",
     "TelephonyAccount",
     "TelephonyGateway",
+    "TelephonyGatewayError",
     "Transcriber",
     "TranscriberError",
 ]
