@@ -89,6 +89,17 @@ document.querySelector("#syncStatus").addEventListener("click", () => {
   showToast(document.querySelector("#syncStatus").title || "Синхронизация ещё не запускалась");
 });
 
+window.setInterval(pollSyncStatus, 10000);
+
+async function pollSyncStatus() {
+  if (document.hidden) return;
+  try {
+    renderSync(await requestJson("/api/sync/status"));
+  } catch {
+    return;
+  }
+}
+
 async function refresh({ keepOperators = false } = {}) {
   if (state.controller) state.controller.abort();
   const controller = new AbortController();

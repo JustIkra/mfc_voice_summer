@@ -49,6 +49,7 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "report.pdf" in script
     assert "processing.pending" in script
     assert "Очередь:" in script
+    assert "setInterval(pollSyncStatus, 10000)" in script
     assert "Эмоциональный окрас" in script
     assert "Ключевые моменты" not in script
     assert 'reportList("Риски"' not in script
