@@ -44,19 +44,6 @@
         </div>
       </section>
 
-      <form class="filters" id="filterForm">
-        <label>Дата с<input id="dateFrom" type="date" /></label>
-        <label>Дата по<input id="dateTo" type="date" /></label>
-        <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
-        <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
-        <label>Вопрос решён<select id="resolutionSelect"><option value="">Все результаты</option><option value="yes">Да</option><option value="partial">Частично</option><option value="no">Нет</option><option value="unknown">Не определено</option></select></label>
-        <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
-        <div class="filter-actions">
-          <button class="button primary" type="submit">Показать отчёт</button>
-          <button class="button ghost" id="resetFilters" type="button">Сбросить</button>
-        </div>
-      </form>
-
       <section class="metrics" id="summaryMetrics" aria-label="Основные показатели">
         <article class="metric"><span>Готовых отчётов</span><strong id="metricTotal">0</strong><small>пустые записи исключены</small></article>
         <article class="metric"><span>Вопрос решён</span><strong id="metricResolved">0%</strong><small id="metricResolvedCount">0 разговоров</small></article>
@@ -88,6 +75,19 @@
           <div class="panel-header"><div><h2>Операторы</h2><p>ID, нагрузка и качество</p></div><span class="utility" id="operatorCount">0 человек</span></div>
           <div class="operator-list" id="operatorBoard"><div class="empty">Нет данных за выбранный период.</div></div>
         </aside>
+
+        <form class="filters journal-filters" id="filterForm">
+          <label>Дата с<input id="dateFrom" type="date" /></label>
+          <label>Дата по<input id="dateTo" type="date" /></label>
+          <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
+          <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
+          <label>Вопрос решён<select id="resolutionSelect"><option value="">Все результаты</option><option value="yes">Да</option><option value="partial">Частично</option><option value="no">Нет</option><option value="unknown">Не определено</option></select></label>
+          <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
+          <div class="filter-actions">
+            <button class="button primary" type="submit">Применить фильтры</button>
+            <button class="button ghost" id="resetFilters" type="button">Сбросить</button>
+          </div>
+        </form>
 
         <article class="panel table-panel">
           <div class="panel-header"><div><h2>Журнал звонков</h2><p>Отчёты и расшифровки без хранения исходных файлов</p></div><span class="utility" id="journalCount">0 звонков</span></div>

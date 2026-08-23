@@ -552,6 +552,11 @@ select {
   grid-column: 1 / -1;
 }
 
+.journal-filters {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
 .panel {
   border-radius: var(--panel-radius);
   padding: var(--panel-pad);

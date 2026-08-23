@@ -31,6 +31,9 @@ def test_dashboard_has_approved_structure_without_recording_controls() -> None:
     ):
         assert f'id="{element_id}"' in html
     assert 'class="quality-legend"' in html
+    assert html.index('id="operatorBoard"') < html.index('id="filterForm"')
+    assert html.index('id="filterForm"') < html.index('id="callJournal"')
+    assert "Применить фильтры" in html
     assert "Эмоция клиента" in html
     assert "Вопрос решён" in html
     assert 'colspan="9"' in html
