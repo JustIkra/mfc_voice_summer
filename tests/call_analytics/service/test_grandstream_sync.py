@@ -123,6 +123,12 @@ class FakeWorkspace(RecordingWorkspace):
         return 0
 
 
+class EmptyRecordingGateway(FakeTelephonyGateway):
+    async def recording_files(self, acct_id: str) -> tuple[str, ...]:
+        del acct_id
+        return ()
+
+
 def _build_service(gateway: FakeTelephonyGateway):
     calls = InMemoryCallRepository()
     jobs = InMemoryJobRepository()
@@ -214,6 +220,23 @@ async def test_call_without_resolved_operator_is_failed_without_download() -> No
 
     assert result.failed == 1
     assert await calls.status(RID) is JobStatus.FAILED
+    assert gateway.download_count == 0
+    assert queue.published == ()
+
+
+async def test_unanswered_call_without_recording_is_skipped_not_failed() -> None:
+    call = replace(
+        _call(),
+        operator=None,
+        source_recording=SourceRecordingIdentity(acct_id="901", filenames=()),
+    )
+    gateway = EmptyRecordingGateway([call], {})
+    service, calls, _, queue, _ = _build_service(gateway)
+
+    result = await service.run_once(NOW)
+
+    assert result == SyncResult(discovered=1, queued=0, skipped=1, failed=0)
+    assert await calls.status(call.id) is JobStatus.SKIPPED_EMPTY
     assert gateway.download_count == 0
     assert queue.published == ()
 

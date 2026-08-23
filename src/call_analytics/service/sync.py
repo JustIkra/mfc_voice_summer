@@ -142,14 +142,6 @@ class GrandstreamSyncService:
     async def _ingest(self, call: DiscoveredCall, now: datetime) -> IngestOutcome:
         if await self._calls.contains(call.id):
             return IngestOutcome.DUPLICATE
-        if call.operator is None:
-            await self._calls.register_failed(
-                call,
-                "OPERATOR_NOT_RESOLVED",
-                "answered queue operator is not present in listAccount",
-                now,
-            )
-            return IngestOutcome.FAILED
         acct_id = call.source_recording.acct_id
         if acct_id is None:
             await self._calls.register_skipped(call, "recording CDR id is absent", now)
@@ -160,6 +152,14 @@ class GrandstreamSyncService:
         if not filenames:
             await self._calls.register_skipped(call, "recording file is absent", now)
             return IngestOutcome.SKIPPED
+        if call.operator is None:
+            await self._calls.register_failed(
+                call,
+                "OPERATOR_NOT_RESOLVED",
+                "answered queue operator is not present in listAccount",
+                now,
+            )
+            return IngestOutcome.FAILED
         parts = [await self._gateway.download_recording(filename) for filename in filenames]
         try:
             prepared = await self._workspace.prepare(call.id, parts)
