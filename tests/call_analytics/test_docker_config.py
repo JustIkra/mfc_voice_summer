@@ -75,6 +75,21 @@ def test_compose_adds_disabled_by_default_grandstream_sync() -> None:
     assert service["environment"]["VOICE_GRANDSTREAM_QUEUE"] == "${VOICE_GRANDSTREAM_QUEUE:-6500}"
 
 
+def test_compose_starts_final_backfill_after_processing_queue() -> None:
+    compose = yaml.safe_load(Path("docker-compose.voice.yml").read_text(encoding="utf-8"))
+    service = compose["services"]["audio-backfill"]
+
+    assert service["command"] == "python -m call_analytics.backfill_after_queue_app"
+    assert service["restart"] == "unless-stopped"
+    assert service["environment"]["VOICE_BACKFILL_LIMIT"] == "${VOICE_BACKFILL_LIMIT:-10000}"
+    assert service["environment"]["VOICE_BACKFILL_POLL_SECONDS"] == (
+        "${VOICE_BACKFILL_POLL_SECONDS:-60}"
+    )
+    assert "/var/recordings-voice-summer:/data/recordings" in service["volumes"]
+    assert "./.data:/data/db" in service["volumes"]
+    assert "./.staging:/data/staging" in service["volumes"]
+
+
 def test_prod_override_does_not_restore_archive_or_upload_mounts() -> None:
     compose = yaml.safe_load(Path("docker-compose.prod.yml").read_text(encoding="utf-8"))
     serialized = Path("docker-compose.prod.yml").read_text(encoding="utf-8")

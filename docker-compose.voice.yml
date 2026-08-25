@@ -117,6 +117,37 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  audio-backfill:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: mfc-voice-web:latest
+    restart: unless-stopped
+    command: python -m call_analytics.backfill_after_queue_app
+    env_file:
+      - .env
+    environment:
+      VOICE_DB_PATH: /data/db/call-analytics.sqlite3
+      VOICE_STAGING_DIR: /data/staging
+      VOICE_CONTAINER_STAGING_DIR: /data/staging
+      VOICE_GRANDSTREAM_URL: ${VOICE_GRANDSTREAM_URL:-https://grandstream253.mfcl.mfclnr.ru/api}
+      VOICE_GRANDSTREAM_USER: ${VOICE_GRANDSTREAM_USER:-ranhigs}
+      VOICE_GRANDSTREAM_PASSWORD: ${VOICE_GRANDSTREAM_PASSWORD:-}
+      VOICE_GRANDSTREAM_QUEUE: ${VOICE_GRANDSTREAM_QUEUE:-6500}
+      VOICE_GRANDSTREAM_QUEUE_NAME: ${VOICE_GRANDSTREAM_QUEUE_NAME:-Call_center}
+      VOICE_GRANDSTREAM_CA_FILE: /usr/local/share/ca-certificates/mfcRootCA.crt
+      VOICE_GRANDSTREAM_API_TIMEOUT_SECONDS: ${VOICE_GRANDSTREAM_API_TIMEOUT_SECONDS:-120}
+      VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS: ${VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS:-900}
+      VOICE_ARCHIVE_DIR: /data/recordings
+      VOICE_ARCHIVE_BITRATE: ${VOICE_ARCHIVE_BITRATE:-24k}
+      VOICE_ARCHIVE_RESERVE_BYTES: ${VOICE_ARCHIVE_RESERVE_BYTES:-2147483648}
+      VOICE_BACKFILL_LIMIT: ${VOICE_BACKFILL_LIMIT:-10000}
+      VOICE_BACKFILL_POLL_SECONDS: ${VOICE_BACKFILL_POLL_SECONDS:-60}
+    volumes:
+      - ./.data:/data/db
+      - ./.staging:/data/staging
+      - /var/recordings-voice-summer:/data/recordings
+
   qwen-api:
     image: vllm/vllm-openai:${VOICE_QWEN_VLLM_TAG:-latest}
     profiles:
