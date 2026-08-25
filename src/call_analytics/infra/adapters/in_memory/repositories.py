@@ -54,6 +54,13 @@ class InMemoryJobRepository(JobRepository):
     async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         return [job for job in self._jobs.values() if job.status is status]
 
+    async def list_stale_running(self, older_than: datetime) -> Sequence[CallProcessingJob]:
+        return [
+            job
+            for job in self._jobs.values()
+            if job.status is JobStatus.RUNNING and job.created_at < older_than
+        ]
+
 
 class InMemoryCallRepository(CallRepository):
     def __init__(self) -> None:

@@ -1,5 +1,5 @@
 const state = {
-  filters: { dateFrom: "", dateTo: "", operatorId: "", satisfaction: "", resolution: "", query: "" },
+  filters: { dateFrom: "", dateTo: "", operatorExtension: "", satisfaction: "", resolution: "", sort: "asc", query: "" },
   page: 1,
   pageSize: 50,
   summary: null,
@@ -39,6 +39,7 @@ const nodes = {
   operator: document.querySelector("#operatorSelect"),
   satisfaction: document.querySelector("#satisfactionSelect"),
   resolution: document.querySelector("#resolutionSelect"),
+  sort: document.querySelector("#sortSelect"),
   search: document.querySelector("#callSearch"),
   journal: document.querySelector("#callJournal"),
   operators: document.querySelector("#operatorBoard"),
@@ -63,6 +64,7 @@ document.querySelector("#resetFilters").addEventListener("click", () => {
   nodes.operator.value = "";
   nodes.satisfaction.value = "";
   nodes.resolution.value = "";
+  nodes.sort.value = "asc";
   nodes.search.value = "";
   readFilters();
   state.page = 1;
@@ -141,8 +143,8 @@ function buildParams({ includePage = false, includeOperator = true } = {}) {
   const params = new URLSearchParams();
   if (state.filters.dateFrom) params.set("date_from", state.filters.dateFrom);
   if (state.filters.dateTo) params.set("date_to", state.filters.dateTo);
-  if (includeOperator && state.filters.operatorId) {
-    params.set("operator_id", state.filters.operatorId);
+  if (includeOperator && state.filters.operatorExtension) {
+    params.set("operator_extension", state.filters.operatorExtension);
   }
   if (state.filters.satisfaction) params.set("satisfaction", state.filters.satisfaction);
   if (state.filters.resolution) params.set("question_resolved", state.filters.resolution);
@@ -150,6 +152,7 @@ function buildParams({ includePage = false, includeOperator = true } = {}) {
   if (includePage) {
     params.set("page", String(state.page));
     params.set("page_size", String(state.pageSize));
+    params.set("sort", state.filters.sort);
   }
   return params.toString();
 }
@@ -158,9 +161,10 @@ function readFilters() {
   state.filters = {
     dateFrom: nodes.dateFrom.value,
     dateTo: nodes.dateTo.value,
-    operatorId: nodes.operator.value,
+    operatorExtension: nodes.operator.value,
     satisfaction: nodes.satisfaction.value,
     resolution: nodes.resolution.value,
+    sort: nodes.sort.value,
     query: nodes.search.value.trim(),
   };
 }
@@ -217,14 +221,18 @@ function renderSummary() {
 
 function renderOperators() {
   setText("operatorCount", `${state.operators.length} человек`);
-  const selected = nodes.operator.value;
-  nodes.operator.innerHTML = [
+  const selected = state.filters.operatorExtension;
+  const options = [
     '<option value="">Все операторы</option>',
     ...state.operators.map(
       (operator) =>
-        `<option value="${operator.operator_id}">${escapeHtml(operator.operator_name)} · ${escapeHtml(operator.operator_extension)}</option>`,
+        `<option value="${escapeHtml(operator.operator_extension)}">${escapeHtml(operator.operator_name)} · ${escapeHtml(operator.operator_extension)}</option>`,
     ),
-  ].join("");
+  ];
+  if (selected && !state.operators.some((operator) => operator.operator_extension === selected)) {
+    options.push(`<option value="${escapeHtml(selected)}">Выбранный оператор · ${escapeHtml(selected)}</option>`);
+  }
+  nodes.operator.innerHTML = options.join("");
   nodes.operator.value = selected;
   if (!state.operators.length) {
     nodes.operators.innerHTML = '<div class="empty">Нет данных за выбранный период.</div>';
@@ -233,16 +241,16 @@ function renderOperators() {
   nodes.operators.innerHTML = state.operators
     .map(
       (operator, index) => `
-        <button class="operator" type="button" data-operator-id="${operator.operator_id}">
+        <button class="operator" type="button" data-operator-extension="${escapeHtml(operator.operator_extension)}">
           <span class="operator-rank">${String(index + 1).padStart(2, "0")}</span>
-          <span><strong>${escapeHtml(operator.operator_name)}</strong><small>ID ${operator.operator_id} · внутр. ${escapeHtml(operator.operator_extension)}</small></span>
+          <span><strong>${escapeHtml(operator.operator_name)}</strong><small>Внутренний ${escapeHtml(operator.operator_extension)}</small></span>
           <span class="operator-score">${operator.satisfied_percent}%</span>
         </button>`,
     )
     .join("");
-  nodes.operators.querySelectorAll("[data-operator-id]").forEach((button) => {
+  nodes.operators.querySelectorAll("[data-operator-extension]").forEach((button) => {
     button.addEventListener("click", () => {
-      nodes.operator.value = button.dataset.operatorId;
+      nodes.operator.value = button.dataset.operatorExtension;
       readFilters();
       state.page = 1;
       refresh({ keepOperators: true });
@@ -262,7 +270,7 @@ function renderCalls() {
         <tr>
           <td>${formatDateTime(call.started_at)}</td>
           <td class="id">${escapeHtml(call.call_id)}</td>
-          <td class="person"><strong>${escapeHtml(call.operator_name)}</strong><small>ID ${call.operator_id} · ${escapeHtml(call.operator_extension)}</small></td>
+          <td class="person"><strong>${escapeHtml(call.operator_name)}</strong><small>Внутренний ${escapeHtml(call.operator_extension)}</small></td>
           <td class="person"><strong>${escapeHtml(call.caller_name || "Имя не определено")}</strong><small>${escapeHtml(call.caller_id || "Caller ID отсутствует")}</small></td>
           <td>${escapeHtml(call.summary)}</td>
           <td class="id">${formatDuration(call.duration_seconds)}</td>

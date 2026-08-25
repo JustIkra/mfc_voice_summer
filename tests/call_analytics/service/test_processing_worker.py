@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -183,6 +184,62 @@ async def test_worker_recovers_running_jobs_left_by_restart() -> None:
     assert job.status is JobStatus.PENDING
     assert message is not None
     assert message.recording_id == RID
+
+
+async def test_watchdog_requeues_stale_running_job_without_clearing_audio() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    workspace = ClearingWorkspace()
+    running = CallProcessingJob.create(
+        RID.value,
+        RID,
+        NOW - timedelta(hours=1),
+    ).start_stage(JobStage.TRANSCRIBE)
+    await jobs.save(running)
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=FailingPipeline(),
+        jobs=jobs,
+        workspace=workspace,
+    )
+
+    requeued, exhausted = await worker.recover_stale_jobs(NOW, max_stage_attempts=8)
+
+    recovered = await jobs.get(RID.value)
+    message = await queue.get()
+    assert (requeued, exhausted) == (1, 0)
+    assert recovered is not None and recovered.status is JobStatus.PENDING
+    assert message is not None and message.recording_id == RID
+    assert workspace.cleared == []
+
+
+async def test_watchdog_marks_job_failed_after_retry_limit() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    workspace = ClearingWorkspace()
+    running = replace(
+        CallProcessingJob.create(
+            RID.value,
+            RID,
+            NOW - timedelta(hours=1),
+        ).start_stage(JobStage.TRANSCRIBE),
+        attempts={JobStage.TRANSCRIBE: 8},
+    )
+    await jobs.save(running)
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=FailingPipeline(),
+        jobs=jobs,
+        workspace=workspace,
+    )
+
+    requeued, exhausted = await worker.recover_stale_jobs(NOW, max_stage_attempts=8)
+
+    failed = await jobs.get(RID.value)
+    assert (requeued, exhausted) == (0, 1)
+    assert failed is not None and failed.status is JobStatus.FAILED
+    assert failed.last_error is not None and failed.last_error[0] == "STALE_RETRY_EXHAUSTED"
+    assert workspace.cleared == [RID]
 
 
 async def test_worker_republishes_pending_job_when_queue_is_empty() -> None:

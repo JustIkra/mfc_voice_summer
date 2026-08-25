@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from datetime import datetime
 
 from call_analytics.service.ports import (
     CallProcessingPipeline,
@@ -63,12 +64,38 @@ class ProcessingWorker:
     async def recover_interrupted_jobs(self) -> int:
         recovered = 0
         for job in await self._jobs.list_by_status(JobStatus.RUNNING):
-            if self._workspace is not None:
-                await self._workspace.clear(job.recording_id)
             await self._jobs.save(job.recover_interrupted())
             await self._queue.publish(job.recording_id)
             recovered += 1
         return recovered
+
+    async def recover_stale_jobs(
+        self,
+        older_than: datetime,
+        max_stage_attempts: int,
+    ) -> tuple[int, int]:
+        requeued = exhausted = 0
+        for job in await self._jobs.list_stale_running(older_than):
+            stage = job.next_stage()
+            attempts = job.attempts.get(stage, 0) if stage is not None else max_stage_attempts
+            if stage is None or attempts >= max_stage_attempts:
+                if stage is not None:
+                    await self._jobs.save(
+                        job.fail_stage(
+                            stage,
+                            "STALE_RETRY_EXHAUSTED",
+                            "processing watchdog retry limit exceeded",
+                        )
+                    )
+                if self._workspace is not None:
+                    await self._workspace.clear(job.recording_id)
+                exhausted += 1
+                continue
+            recovered = job.recover_interrupted()
+            await self._jobs.save(recovered)
+            await self._queue.publish(recovered.recording_id)
+            requeued += 1
+        return requeued, exhausted
 
 
 __all__ = ["ProcessingWorker"]

@@ -424,7 +424,7 @@ h1 {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(12rem, 1.2fr) auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(12rem, 1.2fr) auto;
   gap: 0.85rem;
   align-items: end;
   margin-top: 1rem;
@@ -958,6 +958,16 @@ dialog::backdrop {
   line-height: 1.45;
 }
 
+@media (max-width: 1366px) {
+  .filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .operator-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1200px) {
   .filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -969,12 +979,6 @@ dialog::backdrop {
 
   .filter-actions .button {
     flex: 1;
-  }
-}
-
-@media (max-width: 1366px) {
-  .operator-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

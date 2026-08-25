@@ -17,6 +17,7 @@ def test_dashboard_has_approved_structure_without_recording_controls() -> None:
         "operatorSelect",
         "satisfactionSelect",
         "resolutionSelect",
+        "sortSelect",
         "callSearch",
         "qualityRibbon",
         "resolutionYes",
@@ -58,6 +59,8 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "processing.pending" in script
     assert "Очередь:" in script
     assert "setInterval(pollSyncStatus, 10000)" in script
+    assert 'params.set("operator_extension"' in script
+    assert 'params.set("sort"' in script
     assert "Эмоциональный окрас" in script
     assert "Ключевые моменты" not in script
     assert 'reportList("Риски"' not in script

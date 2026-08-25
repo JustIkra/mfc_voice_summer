@@ -174,3 +174,31 @@ async def test_list_calls_filters_pages_and_escapes_wildcards(tmp_path: Path) ->
     assert page.page_size == 1
     assert [item.call_id for item in page.items] == ["cdr:1"]
     assert page.items[0].recording_filenames == ("call.wav",)
+
+
+async def test_list_calls_filters_by_unique_operator_extension(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+
+    page = await repository.list_calls(
+        CallPageRequest(
+            filters=DashboardFilter(
+                DATE_FROM,
+                DATE_TO,
+                operator_extension="11195",
+            )
+        )
+    )
+
+    assert [item.call_id for item in page.items] == ["cdr:2"]
+    assert {item.operator_extension for item in page.items} == {"11195"}
+
+
+async def test_list_calls_supports_oldest_and_newest_sorting(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    filters = DashboardFilter(DATE_FROM, DATE_TO)
+
+    ascending = await repository.list_calls(CallPageRequest(filters=filters, sort="asc"))
+    descending = await repository.list_calls(CallPageRequest(filters=filters, sort="desc"))
+
+    assert [item.call_id for item in ascending.items] == ["cdr:1", "cdr:2"]
+    assert [item.call_id for item in descending.items] == ["cdr:2", "cdr:1"]

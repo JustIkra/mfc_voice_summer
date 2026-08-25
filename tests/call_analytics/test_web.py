@@ -150,7 +150,15 @@ def test_dashboard_summary_and_operator_endpoints() -> None:
 
 
 def test_call_list_is_server_paginated_and_has_no_audio_fields() -> None:
-    response = build_client().get("/api/calls", params={"page": 1, "page_size": 50})
+    response = build_client().get(
+        "/api/calls",
+        params={
+            "page": 1,
+            "page_size": 50,
+            "operator_extension": "11198",
+            "sort": "asc",
+        },
+    )
 
     assert response.status_code == 200
     assert response.json()["page_size"] == 50
@@ -185,6 +193,7 @@ def test_missing_report_and_invalid_filters_are_explicit() -> None:
     )
     assert client.get("/api/calls", params={"satisfaction": "excellent"}).status_code == 422
     assert client.get("/api/calls", params={"question_resolved": "maybe"}).status_code == 422
+    assert client.get("/api/calls", params={"sort": "sideways"}).status_code == 422
     assert client.get("/api/calls", params={"page_size": 101}).status_code == 422
 
 

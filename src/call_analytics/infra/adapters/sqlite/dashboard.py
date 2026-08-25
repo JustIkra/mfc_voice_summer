@@ -105,6 +105,7 @@ class SqliteDashboardRepository(DashboardRepository):
     def _list_calls(self, request: CallPageRequest) -> CallPage:
         where, parameters = _where(request.filters)
         offset = (request.page - 1) * request.page_size
+        direction = "ASC" if request.sort == "asc" else "DESC"
         with self._database.connect() as connection:
             total_row = connection.execute(
                 f"""
@@ -124,7 +125,7 @@ class SqliteDashboardRepository(DashboardRepository):
                 FROM calls c
                 JOIN reports r ON r.call_id = c.call_id
                 WHERE {where}
-                ORDER BY c.started_at DESC, c.call_id DESC
+                ORDER BY c.started_at {direction}, c.call_id {direction}
                 LIMIT ? OFFSET ?
                 """,
                 (*parameters, request.page_size, offset),
@@ -157,9 +158,9 @@ class SqliteDashboardRepository(DashboardRepository):
 def _where(filters: DashboardFilter) -> tuple[str, list[object]]:
     clauses = ["c.status = 'done'", "c.started_at >= ?", "c.started_at <= ?"]
     parameters: list[object] = [filters.date_from.isoformat(), filters.date_to.isoformat()]
-    if filters.operator_id is not None:
-        clauses.append("c.operator_id = ?")
-        parameters.append(filters.operator_id)
+    if filters.operator_extension:
+        clauses.append("c.operator_extension = ?")
+        parameters.append(filters.operator_extension)
     if filters.satisfaction:
         clauses.append("r.satisfaction = ?")
         parameters.append(filters.satisfaction)

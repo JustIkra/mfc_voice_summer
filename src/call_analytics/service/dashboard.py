@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class DashboardFilter:
     date_from: datetime
     date_to: datetime
-    operator_id: int | None = None
+    operator_extension: str | None = None
     satisfaction: str | None = None
     question_resolved: str | None = None
     query: str = ""
@@ -30,6 +30,7 @@ class CallPageRequest:
     filters: DashboardFilter
     page: int = 1
     page_size: int = 50
+    sort: str = "asc"
 
 
 @dataclass(frozen=True, slots=True)

@@ -19,6 +19,7 @@ from domain import RecordingId
 _STATIC_DIR = Path(__file__).parent / "web_static"
 _SATISFACTION = Literal["satisfied", "neutral", "dissatisfied"]
 _RESOLUTION = Literal["yes", "partial", "no", "unknown"]
+_SORT = Literal["asc", "desc"]
 
 
 @dataclass(slots=True)
@@ -56,7 +57,7 @@ def create_app(
     async def dashboard_summary(
         date_from: date | None = None,
         date_to: date | None = None,
-        operator_id: int | None = None,
+        operator_extension: str | None = None,
         satisfaction: _SATISFACTION | None = None,
         question_resolved: _RESOLUTION | None = None,
         query: str = "",
@@ -64,7 +65,7 @@ def create_app(
         filters = _filters(
             date_from,
             date_to,
-            operator_id,
+            operator_extension,
             satisfaction,
             question_resolved,
             query,
@@ -76,7 +77,7 @@ def create_app(
     async def list_operators(
         date_from: date | None = None,
         date_to: date | None = None,
-        operator_id: int | None = None,
+        operator_extension: str | None = None,
         satisfaction: _SATISFACTION | None = None,
         question_resolved: _RESOLUTION | None = None,
         query: str = "",
@@ -84,7 +85,7 @@ def create_app(
         filters = _filters(
             date_from,
             date_to,
-            operator_id,
+            operator_extension,
             satisfaction,
             question_resolved,
             query,
@@ -106,24 +107,25 @@ def create_app(
     async def list_calls(
         date_from: date | None = None,
         date_to: date | None = None,
-        operator_id: int | None = None,
+        operator_extension: str | None = None,
         satisfaction: _SATISFACTION | None = None,
         question_resolved: _RESOLUTION | None = None,
         query: str = "",
         page: Annotated[int, Query(ge=1)] = 1,
         page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+        sort: _SORT = "asc",
     ) -> dict[str, object]:
         filters = _filters(
             date_from,
             date_to,
-            operator_id,
+            operator_extension,
             satisfaction,
             question_resolved,
             query,
             state.clock(),
         )
         result = await dashboard().calls(
-            CallPageRequest(filters=filters, page=page, page_size=page_size)
+            CallPageRequest(filters=filters, page=page, page_size=page_size, sort=sort)
         )
         return {
             "items": [
@@ -185,7 +187,7 @@ def create_app(
 def _filters(
     date_from: date | None,
     date_to: date | None,
-    operator_id: int | None,
+    operator_extension: str | None,
     satisfaction: str | None,
     question_resolved: str | None,
     query: str,
@@ -198,7 +200,7 @@ def _filters(
     return DashboardFilter(
         date_from=datetime.combine(start_date, time.min, tzinfo=MSK),
         date_to=datetime.combine(end_date, time.max, tzinfo=MSK),
-        operator_id=operator_id,
+        operator_extension=operator_extension,
         satisfaction=satisfaction,
         question_resolved=question_resolved,
         query=query.strip(),

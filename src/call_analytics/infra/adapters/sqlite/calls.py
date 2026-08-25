@@ -98,6 +98,9 @@ class SqliteCallRepository(CallRepository, JobRepository):
     async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         return await asyncio.to_thread(self._list_by_status, status)
 
+    async def list_stale_running(self, older_than: datetime) -> Sequence[CallProcessingJob]:
+        return await asyncio.to_thread(self._list_stale_running, older_than)
+
     def _contains(self, recording_id: RecordingId) -> bool:
         with self._database.connect() as connection:
             row = connection.execute(
@@ -297,6 +300,18 @@ class SqliteCallRepository(CallRepository, JobRepository):
             rows = connection.execute(
                 "SELECT * FROM calls WHERE status = ? ORDER BY created_at, call_id",
                 (status.value,),
+            ).fetchall()
+        return [_job_from_row(row) for row in rows]
+
+    def _list_stale_running(self, older_than: datetime) -> list[CallProcessingJob]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM calls
+                WHERE status = ? AND updated_at < ?
+                ORDER BY updated_at, call_id
+                """,
+                (JobStatus.RUNNING.value, older_than.isoformat()),
             ).fetchall()
         return [_job_from_row(row) for row in rows]
 

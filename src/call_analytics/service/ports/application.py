@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from datetime import datetime
 from enum import Enum, auto
 from typing import NamedTuple, Protocol
 
@@ -272,6 +273,10 @@ class JobRepository(ABC):
     @abstractmethod
     async def list_by_status(self, status: JobStatus) -> Sequence[CallProcessingJob]:
         """Список job в указанном статусе."""
+
+    @abstractmethod
+    async def list_stale_running(self, older_than: datetime) -> Sequence[CallProcessingJob]:
+        """RUNNING jobs, которые не обновлялись после указанного времени."""
 
 
 class ArtifactStore(ABC):
