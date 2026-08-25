@@ -932,7 +932,7 @@ dialog::backdrop {
   border-left: 0.24rem solid var(--teal);
   border-radius: 0.8rem;
   padding: 1rem;
-  background: var(--teal-soft);
+  background: white;
 }
 
 .recording-player h3,

@@ -131,6 +131,9 @@ def test_audio_player_exists_only_in_report_renderer() -> None:
     assert '.querySelector("audio")?.pause()' in script
     assert ".recording-player" in css
     assert ".recording-player audio" in css
+    player_block = css[css.index(".recording-player {") : css.index(".recording-player h3,")]
+    assert "background: white" in player_block
+    assert "background: var(--teal-soft)" not in player_block
 
 
 def test_sync_tooltip_describes_recording_storage() -> None:
