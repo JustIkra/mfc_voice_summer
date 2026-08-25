@@ -345,10 +345,7 @@ function renderOperators() {
         <button class="operator" type="button" data-operator-extension="${escapeHtml(operator.operator_extension)}">
           <span class="operator-rank">${String(index + 1).padStart(2, "0")}</span>
           <span><strong>${escapeHtml(operator.operator_name)}</strong><small>Внутренний ${escapeHtml(operator.operator_extension)}</small></span>
-          <span class="operator-metrics">
-            <span class="operator-score" title="Индивидуальная доля позитивных звонков этого оператора"><strong>${operator.satisfied_percent}%</strong><small>позитив</small></span>
-            <span class="operator-score resolved" title="Доля обращений этого оператора с результатом «Да»"><strong>${operator.resolved_percent}%</strong><small>решено</small></span>
-          </span>
+          <span class="operator-score resolved" title="Доля обращений этого оператора с результатом «Да»">${operator.resolved_percent}%</span>
         </button>`,
     )
     .join("");

@@ -32,7 +32,7 @@ def _repository(tmp_path: Path) -> SqliteDashboardRepository:
             operator_extension="11198",
             operator_name="Первый оператор",
             caller_id="abc%def",
-            satisfaction="satisfied",
+            satisfaction="dissatisfied",
             resolved="yes",
             summary="Статус заявления",
             attention=0,
@@ -47,7 +47,7 @@ def _repository(tmp_path: Path) -> SqliteDashboardRepository:
             operator_extension="11195",
             operator_name="Второй оператор",
             caller_id="79000000002",
-            satisfaction="dissatisfied",
+            satisfaction="satisfied",
             resolved="no",
             summary="Жалоба на срок",
             attention=1,
@@ -146,7 +146,7 @@ async def test_summary_and_operator_rows_exclude_failed_calls(tmp_path: Path) ->
     assert [(item.id, item.total_calls) for item in operators] == [(14, 1), (15, 1)]
     assert [
         (item.extension, item.satisfied_percent, item.resolved_percent) for item in operators
-    ] == [("11198", 100, 100), ("11195", 0, 0)]
+    ] == [("11198", 0, 100), ("11195", 100, 0)]
 
 
 async def test_processing_counts_include_non_report_jobs(tmp_path: Path) -> None:

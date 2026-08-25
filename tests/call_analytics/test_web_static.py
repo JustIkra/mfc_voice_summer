@@ -88,21 +88,21 @@ def test_filter_dropdowns_share_aligned_full_width_custom_control() -> None:
     assert ".custom-select-trigger" in css
     assert ".custom-select-menu" in css
     assert "top: calc(100% + 0.35rem)" in css
-    assert "right: 0" in css
-    assert "width: auto" in css
+    assert "right: auto" in css
+    assert "width: calc(100% + 3rem)" in css
     assert "padding: 0 0.8rem 0 2rem" in css
     assert "top: 50%" in css
 
 
-def test_operator_percent_is_explained_as_individual_positive_share() -> None:
+def test_operator_card_shows_only_individual_resolved_percent() -> None:
     html = _read("index.html")
     script = _read("assets/app.js")
 
-    assert "Доля звонков с позитивной эмоцией клиента у каждого оператора" in html
-    assert "доля позитивных звонков" in script
-    assert "<small>позитив</small>" in script
+    assert "Доля обращений, где вопрос решён полностью" in html
+    assert "позитивной эмоцией" not in html
+    assert "operator.satisfied_percent" not in script
     assert "operator.resolved_percent" in script
-    assert "<small>решено</small>" in script
+    assert "<small>решено</small>" not in script
     assert "нагрузка" not in html.lower()
 
 

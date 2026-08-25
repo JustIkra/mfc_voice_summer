@@ -100,7 +100,7 @@ class SqliteDashboardRepository(DashboardRepository):
                 JOIN reports r ON r.call_id = c.call_id
                 WHERE {where}
                 GROUP BY c.operator_id, c.operator_extension, c.operator_name
-                ORDER BY satisfied_percent DESC, c.operator_name, c.operator_id
+                ORDER BY resolved_percent DESC, c.operator_name, c.operator_id
                 """,
                 parameters,
             ).fetchall()
