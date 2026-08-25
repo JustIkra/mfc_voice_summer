@@ -25,7 +25,17 @@ from domain import (
 )
 
 MSK = timezone(timedelta(hours=3))
-_RETRYABLE_ERROR_KINDS = frozenset({"CONNECTION", "TIMEOUT", "RATE_LIMIT", "SERVER"})
+_RETRYABLE_ERROR_KINDS = frozenset(
+    {
+        "ARCHIVE_CAPACITY",
+        "ARCHIVE_ENCODING",
+        "ARCHIVE_IO",
+        "CONNECTION",
+        "RATE_LIMIT",
+        "SERVER",
+        "TIMEOUT",
+    }
+)
 
 
 class SqliteCallRepository(CallRepository, JobRepository):

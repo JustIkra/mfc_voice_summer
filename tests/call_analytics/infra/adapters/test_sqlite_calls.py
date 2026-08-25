@@ -122,3 +122,17 @@ async def test_only_retryable_failed_calls_below_cap_are_listed(tmp_path: Path) 
 
     assert list(retryable) == [recording]
     assert list(await repository.list_retryable(max_attempts=1)) == []
+
+
+async def test_archive_failure_is_retryable_without_stage_attempt(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    recording = _recording()
+    failed = CallProcessingJob.create(recording.id.value, recording.id, NOW).fail_before_processing(
+        "ARCHIVE_IO",
+        "archive write failed",
+    )
+    await repository.register(recording, failed)
+
+    retryable = await repository.list_retryable(max_attempts=5)
+
+    assert list(retryable) == [recording]

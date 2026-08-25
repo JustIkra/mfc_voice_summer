@@ -4,6 +4,7 @@ from datetime import time
 from pathlib import Path
 
 from call_analytics.bootstrap import AppSettings, build_application
+from call_analytics.infra.adapters.archive import FilesystemRecordingArchive
 from call_analytics.infra.adapters.queue import RabbitMQProcessingQueue
 from call_analytics.infra.adapters.sqlite import (
     SqliteCallRepository,
@@ -25,6 +26,7 @@ def test_build_application_wires_sqlite_workspace_worker_and_sync(tmp_path: Path
     settings = AppSettings(
         db_path=tmp_path / "data" / "calls.sqlite3",
         staging_dir=tmp_path / "staging",
+        archive_dir=tmp_path / "archive",
         asr_url="http://asr:8100",
         diarization_url="http://diarization:8100",
         emotion_url="http://emotion:8100",
@@ -54,12 +56,16 @@ def test_build_application_wires_sqlite_workspace_worker_and_sync(tmp_path: Path
     assert isinstance(app.dashboard_repository, SqliteDashboardRepository)
     assert isinstance(app.sync_runs, SqliteSyncRunRepository)
     assert isinstance(app.queue, RabbitMQProcessingQueue)
+    assert isinstance(app.recording_archive, FilesystemRecordingArchive)
     assert settings.db_path.is_file()
 
 
 def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("VOICE_DB_PATH", str(tmp_path / "calls.sqlite3"))
     monkeypatch.setenv("VOICE_STAGING_DIR", str(tmp_path / "stage"))
+    monkeypatch.setenv("VOICE_ARCHIVE_DIR", str(tmp_path / "archive"))
+    monkeypatch.setenv("VOICE_ARCHIVE_BITRATE", "32k")
+    monkeypatch.setenv("VOICE_ARCHIVE_RESERVE_BYTES", "4096")
     monkeypatch.setenv("VOICE_GRANDSTREAM_URL", "https://ucm.example/api")
     monkeypatch.setenv("VOICE_GRANDSTREAM_USER", "api-user")
     monkeypatch.setenv("VOICE_GRANDSTREAM_PASSWORD", "secret")
@@ -72,6 +78,9 @@ def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: P
 
     assert settings.db_path == tmp_path / "calls.sqlite3"
     assert settings.staging_dir == tmp_path / "stage"
+    assert settings.archive_dir == tmp_path / "archive"
+    assert settings.archive_bitrate == "32k"
+    assert settings.archive_reserve_bytes == 4096
     assert settings.grandstream_url == "https://ucm.example/api"
     assert settings.grandstream_user == "api-user"
     assert settings.grandstream_password == "secret"

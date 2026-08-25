@@ -98,6 +98,13 @@ class CallProcessingJob:
             raise InvalidJobTransition(f"нельзя пометить ошибку из статуса {self.status.name}")
         return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
 
+    def fail_before_processing(self, kind: str, message: str) -> CallProcessingJob:
+        if self.status is not JobStatus.PENDING:
+            raise InvalidJobTransition(
+                f"предварительная ошибка возможна только из PENDING, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
+
     def skip_empty(self) -> CallProcessingJob:
         if self.status is not JobStatus.RUNNING:
             raise InvalidJobTransition(

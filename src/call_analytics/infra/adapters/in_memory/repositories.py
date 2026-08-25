@@ -33,7 +33,17 @@ from domain import (
     build_report_payload,
 )
 
-_RETRYABLE_ERROR_KINDS = frozenset({"CONNECTION", "TIMEOUT", "RATE_LIMIT", "SERVER"})
+_RETRYABLE_ERROR_KINDS = frozenset(
+    {
+        "ARCHIVE_CAPACITY",
+        "ARCHIVE_ENCODING",
+        "ARCHIVE_IO",
+        "CONNECTION",
+        "RATE_LIMIT",
+        "SERVER",
+        "TIMEOUT",
+    }
+)
 
 
 class InMemoryJobRepository(JobRepository):
@@ -78,7 +88,7 @@ class InMemoryCallRepository(CallRepository):
         self._recordings[recording.id.value] = recording
         self._statuses[recording.id.value] = job.status
         self._attempt_counts[recording.id.value] = sum(job.attempts.values())
-        self._error_kinds[recording.id.value] = None
+        self._error_kinds[recording.id.value] = job.last_error[0] if job.last_error else None
         return True
 
     async def register_skipped(

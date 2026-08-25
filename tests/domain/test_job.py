@@ -36,6 +36,16 @@ def test_start_counts_attempts() -> None:
     assert job.attempts[JobStage.TRANSCRIBE] == 1
 
 
+def test_job_can_fail_before_processing_without_counting_stage_attempt() -> None:
+    job = CallProcessingJob.create("job-1", RecordingId("rec-1"), NOW)
+
+    failed = job.fail_before_processing("ARCHIVE_IO", "archive write failed")
+
+    assert failed.status is JobStatus.FAILED
+    assert failed.attempts == {}
+    assert failed.last_error == ("ARCHIVE_IO", "archive write failed")
+
+
 def test_cannot_start_out_of_order_stage() -> None:
     job = _job()
     with pytest.raises(InvalidJobTransition):

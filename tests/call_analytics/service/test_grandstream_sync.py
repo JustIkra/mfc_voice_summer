@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -14,8 +15,13 @@ from call_analytics.infra.adapters.in_memory import (
 )
 from call_analytics.service import GrandstreamSyncService, SyncResult
 from call_analytics.service.ports import (
+    ArchivedRecording,
+    ArchivedRecordingFile,
     InvalidRecordingError,
     PreparedAudio,
+    RecordingArchive,
+    RecordingArchiveError,
+    RecordingStorageStatus,
     RecordingWorkspace,
     TelephonyAccount,
     TelephonyGateway,
@@ -129,20 +135,137 @@ class EmptyRecordingGateway(FakeTelephonyGateway):
         return ()
 
 
-def _build_service(gateway: FakeTelephonyGateway):
-    calls = InMemoryCallRepository()
+class FakeArchive(RecordingArchive):
+    def __init__(self, events: list[str] | None = None) -> None:
+        self.events = events
+        self.stored: set[RecordingId] = set()
+        self.error: RecordingArchiveError | None = None
+
+    async def store(self, recording_id: RecordingId, audio: AudioBlob) -> ArchivedRecording:
+        if self.events is not None:
+            self.events.append("archive")
+        if self.error is not None:
+            raise self.error
+        self.stored.add(recording_id)
+        return ArchivedRecording(recording_id, "audio/ogg", "opus", len(audio.data))
+
+    async def locate(self, recording_id: RecordingId) -> ArchivedRecordingFile | None:
+        if recording_id not in self.stored:
+            return None
+        return ArchivedRecordingFile(Path("/archive/test.ogg"), "audio/ogg", 12)
+
+    async def storage_status(self) -> RecordingStorageStatus:
+        return RecordingStorageStatus.from_usage(100, 10, 90, reserve_bytes=2)
+
+
+class TrackingCallRepository(InMemoryCallRepository):
+    def __init__(self, events: list[str]) -> None:
+        super().__init__()
+        self._events = events
+
+    async def register(self, recording, job):
+        self._events.append("register")
+        return await super().register(recording, job)
+
+
+class TrackingQueue(InMemoryProcessingQueue):
+    def __init__(self, events: list[str]) -> None:
+        super().__init__()
+        self._events = events
+
+    async def publish(self, recording_id: RecordingId) -> None:
+        self._events.append("publish")
+        await super().publish(recording_id)
+
+
+def _build_service(
+    gateway: FakeTelephonyGateway,
+    archive: FakeArchive | None = None,
+    events: list[str] | None = None,
+    workspace: FakeWorkspace | None = None,
+):
+    calls = TrackingCallRepository(events) if events is not None else InMemoryCallRepository()
     jobs = InMemoryJobRepository()
-    queue = InMemoryProcessingQueue()
+    queue = TrackingQueue(events) if events is not None else InMemoryProcessingQueue()
     sync_runs = InMemorySyncRunRepository()
     service = GrandstreamSyncService(
         gateway=gateway,
-        workspace=FakeWorkspace(),
+        workspace=workspace or FakeWorkspace(),
+        archive=archive or FakeArchive(events),
         calls=calls,
         jobs=jobs,
         sync_runs=sync_runs,
         queue=queue,
     )
     return service, calls, jobs, queue, sync_runs
+
+
+async def test_sync_archives_before_register_and_publish() -> None:
+    events: list[str] = []
+    gateway = FakeTelephonyGateway([_call()], {"2026-08/call.wav": b"RIFFdemo"})
+    service, _, _, _, _ = _build_service(gateway, events=events)
+
+    result = await service.run_once(NOW)
+
+    assert result.queued == 1
+    assert events.index("archive") < events.index("register") < events.index("publish")
+
+
+async def test_archive_failure_registers_failed_recording_and_does_not_publish() -> None:
+    gateway = FakeTelephonyGateway([_call()], {"2026-08/call.wav": b"RIFFdemo"})
+    archive = FakeArchive()
+    archive.error = RecordingArchiveError("ARCHIVE_IO", "archive write failed")
+    service, calls, jobs, queue, _ = _build_service(gateway, archive=archive)
+
+    result = await service.run_once(NOW)
+
+    assert result.failed == 1
+    assert queue.published == ()
+    assert await calls.status(RID) is JobStatus.FAILED
+    failed = await jobs.get(RID.value)
+    assert failed is not None
+    assert failed.last_error == ("ARCHIVE_IO", "archive write failed")
+    recording = await calls.load_recording(RID)
+    assert recording is not None
+    assert recording.source_recording is not None
+    assert recording.source_recording.filenames == ("2026-08/call.wav",)
+
+
+async def test_later_sync_retries_archive_failure_before_queueing() -> None:
+    gateway = FakeTelephonyGateway([_call()], {"2026-08/call.wav": b"RIFFdemo"})
+    archive = FakeArchive()
+    archive.error = RecordingArchiveError("ARCHIVE_IO", "archive write failed")
+    service, _, jobs, queue, _ = _build_service(gateway, archive=archive)
+    await service.run_once(NOW)
+    archive.error = None
+
+    result = await service.run_once(NOW + timedelta(days=1))
+
+    assert result.queued == 1
+    assert queue.published == (RID,)
+    restarted = await jobs.get(RID.value)
+    assert restarted is not None
+    assert restarted.status is JobStatus.PENDING
+    assert RID in archive.stored
+
+
+async def test_retry_clears_workspace_when_archive_still_fails() -> None:
+    gateway = FakeTelephonyGateway([_call()], {"2026-08/call.wav": b"RIFFdemo"})
+    archive = FakeArchive()
+    archive.error = RecordingArchiveError("ARCHIVE_IO", "archive write failed")
+    workspace = FakeWorkspace()
+    service, _, _, queue, _ = _build_service(
+        gateway,
+        archive=archive,
+        workspace=workspace,
+    )
+    await service.run_once(NOW)
+
+    result = await service.run_once(NOW + timedelta(days=1))
+
+    assert result.failed == 1
+    assert queue.published == ()
+    assert RID.value not in workspace.audio
 
 
 async def test_sync_uses_exact_thirty_day_window_and_queues_new_valid_call() -> None:

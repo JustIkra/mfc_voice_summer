@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
+from call_analytics.infra.adapters.archive import FilesystemRecordingArchive
 from call_analytics.infra.adapters.grandstream import GrandstreamClient
 from call_analytics.infra.adapters.model_api import (
     MountedDirectoryAudioStager,
@@ -39,6 +40,7 @@ from call_analytics.service.ports import (
     FinalReportRepository,
     JobRepository,
     ProcessingQueue,
+    RecordingArchive,
     RecordingWorkspace,
     SyncRunRepository,
 )
@@ -50,6 +52,9 @@ MSK = timezone(timedelta(hours=3))
 class AppSettings:
     db_path: Path = Path(".data/call-analytics.sqlite3")
     staging_dir: Path = Path(".staging")
+    archive_dir: Path = Path("/data/recordings")
+    archive_bitrate: str = "24k"
+    archive_reserve_bytes: int = 2 * 1024**3
     asr_url: str = "http://127.0.0.1:8101"
     diarization_url: str = "http://127.0.0.1:8102"
     emotion_url: str = "http://127.0.0.1:8103"
@@ -80,6 +85,12 @@ class AppSettings:
         return cls(
             db_path=Path(os.getenv("VOICE_DB_PATH", ".data/call-analytics.sqlite3")),
             staging_dir=Path(os.getenv("VOICE_STAGING_DIR", ".staging")),
+            archive_dir=Path(os.getenv("VOICE_ARCHIVE_DIR", "/data/recordings")),
+            archive_bitrate=os.getenv("VOICE_ARCHIVE_BITRATE", "24k"),
+            archive_reserve_bytes=_positive_int(
+                "VOICE_ARCHIVE_RESERVE_BYTES",
+                2 * 1024**3,
+            ),
             asr_url=os.getenv("VOICE_ASR_URL", "http://127.0.0.1:8101"),
             diarization_url=os.getenv("VOICE_DIARIZATION_URL", "http://127.0.0.1:8102"),
             emotion_url=os.getenv("VOICE_EMOTION_URL", "http://127.0.0.1:8103"),
@@ -138,6 +149,7 @@ class Application:
     dashboard_repository: DashboardRepository
     sync_runs: SyncRunRepository
     recording_workspace: RecordingWorkspace
+    recording_archive: RecordingArchive
     queue: ProcessingQueue
     pipeline: CallProcessingService
     workspace: PipelineWorkspace
@@ -157,6 +169,11 @@ def build_application(settings: AppSettings | None = None) -> Application:
     recording_workspace = FilesystemRecordingWorkspace(
         settings.staging_dir,
         settings.container_staging_dir,
+    )
+    recording_archive = FilesystemRecordingArchive(
+        settings.archive_dir,
+        bitrate=settings.archive_bitrate,
+        reserve_bytes=settings.archive_reserve_bytes,
     )
     queue = RabbitMQProcessingQueue(
         settings.rabbitmq_url or "amqp://guest:guest@localhost/",
@@ -231,6 +248,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
     sync = GrandstreamSyncService(
         gateway=gateway,
         workspace=recording_workspace,
+        archive=recording_archive,
         calls=calls,
         jobs=calls,
         sync_runs=sync_runs,
@@ -252,6 +270,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
         dashboard_repository=dashboard_repository,
         sync_runs=sync_runs,
         recording_workspace=recording_workspace,
+        recording_archive=recording_archive,
         queue=queue,
         pipeline=pipeline,
         workspace=workspace,

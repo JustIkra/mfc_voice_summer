@@ -10,6 +10,8 @@ from call_analytics.service.ports import (
     InvalidRecordingError,
     JobRepository,
     ProcessingQueue,
+    RecordingArchive,
+    RecordingArchiveError,
     RecordingWorkspace,
     SyncRunRepository,
     TelephonyGateway,
@@ -40,6 +42,7 @@ class GrandstreamSyncService:
         self,
         gateway: TelephonyGateway,
         workspace: RecordingWorkspace,
+        archive: RecordingArchive,
         calls: CallRepository,
         jobs: JobRepository,
         sync_runs: SyncRunRepository,
@@ -49,6 +52,7 @@ class GrandstreamSyncService:
     ) -> None:
         self._gateway = gateway
         self._workspace = workspace
+        self._archive = archive
         self._calls = calls
         self._jobs = jobs
         self._sync_runs = sync_runs
@@ -63,6 +67,7 @@ class GrandstreamSyncService:
             return SyncResult(discovered=0, queued=0, skipped=0, failed=0)
         discovered = queued = skipped = failed = 0
         try:
+            retryable_recordings = await self._calls.list_retryable(self._max_attempts)
             accounts = await self._gateway.list_accounts()
             calls = await self._gateway.list_calls(period, accounts)
             for call in calls:
@@ -98,12 +103,12 @@ class GrandstreamSyncService:
                 if limit is not None and discovered >= limit:
                     break
 
-            for recording in await self._calls.list_retryable(self._max_attempts):
+            for recording in retryable_recordings:
                 if limit is not None and queued >= limit:
                     break
                 try:
                     outcome = await self._retry(recording)
-                except TelephonyGatewayError:
+                except (TelephonyGatewayError, RecordingArchiveError):
                     failed += 1
                     continue
                 if outcome is IngestOutcome.QUEUED:
@@ -160,6 +165,10 @@ class GrandstreamSyncService:
         if not filenames:
             await self._calls.register_skipped(call, "recording file is absent", now)
             return IngestOutcome.SKIPPED
+        call = replace(
+            call,
+            source_recording=replace(call.source_recording, filenames=filenames),
+        )
         if call.operator is None:
             await self._calls.register_failed(
                 call,
@@ -182,9 +191,22 @@ class GrandstreamSyncService:
             queue=call.queue,
             caller=call.caller,
             operator=call.operator,
-            source_recording=replace(call.source_recording, filenames=filenames),
+            source_recording=call.source_recording,
         )
         job = CallProcessingJob.create(recording.id.value, recording.id, now)
+        try:
+            await self._archive.store(
+                recording.id,
+                await self._workspace.load_audio(recording.id),
+            )
+        except RecordingArchiveError as error:
+            failed_job = job.fail_before_processing(error.kind, str(error))
+            if not await self._calls.register(recording, failed_job):
+                await self._workspace.clear(recording.id)
+                return IngestOutcome.DUPLICATE
+            await self._jobs.save(failed_job)
+            await self._workspace.clear(recording.id)
+            return IngestOutcome.FAILED
         if not await self._calls.register(recording, job):
             await self._workspace.clear(recording.id)
             return IngestOutcome.DUPLICATE
@@ -207,6 +229,14 @@ class GrandstreamSyncService:
         except InvalidRecordingError as error:
             await self._calls.mark_skipped_empty(recording.id, str(error))
             return IngestOutcome.SKIPPED
+        try:
+            await self._archive.store(
+                recording.id,
+                await self._workspace.load_audio(recording.id),
+            )
+        except RecordingArchiveError:
+            await self._workspace.clear(recording.id)
+            raise
         restarted = job.restart()
         await self._jobs.save(restarted)
         await self._queue.publish(recording.id)
