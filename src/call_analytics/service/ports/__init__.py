@@ -33,6 +33,15 @@ from call_analytics.service.ports.application import (
     Transcriber,
     TranscriberError,
 )
+from call_analytics.service.ports.archive import (
+    ArchivedRecording,
+    ArchivedRecordingFile,
+    ArchiveErrorKind,
+    ArchiveState,
+    RecordingArchive,
+    RecordingArchiveError,
+    RecordingStorageStatus,
+)
 from call_analytics.service.ports.persistence import (
     CallRepository,
     DashboardRepository,
@@ -50,6 +59,10 @@ from call_analytics.service.ports.telephony import (
 )
 
 __all__ = [
+    "ArchiveErrorKind",
+    "ArchiveState",
+    "ArchivedRecording",
+    "ArchivedRecordingFile",
     "ArtifactStore",
     "CallListItem",
     "CallPage",
@@ -75,7 +88,10 @@ __all__ = [
     "ProcessingMessage",
     "ProcessingQueue",
     "ProcessingQueueError",
+    "RecordingArchive",
+    "RecordingArchiveError",
     "RecordingInbox",
+    "RecordingStorageStatus",
     "RecordingWorkspace",
     "ReportGenerator",
     "ReportGeneratorError",
