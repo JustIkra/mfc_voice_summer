@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import pytest
 
 from call_analytics.infra.adapters.sqlite import SqliteCallRepository, SqliteDatabase
 from domain import (
+    STAGE_ORDER,
     CallerIdentity,
     CallerNameSource,
     CallProcessingJob,
@@ -136,3 +138,28 @@ async def test_archive_failure_is_retryable_without_stage_attempt(tmp_path: Path
     retryable = await repository.list_retryable(max_attempts=5)
 
     assert list(retryable) == [recording]
+
+
+async def test_done_recordings_are_listed_newest_first(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    old = _recording()
+    new = replace(
+        old,
+        id=RecordingId("cdr:new"),
+        started_at=NOW + timedelta(hours=1),
+        source_recording=SourceRecordingIdentity(
+            acct_id="902",
+            filenames=("2026-08/new.wav",),
+        ),
+    )
+    for recording in (old, new):
+        done = replace(
+            CallProcessingJob.create(recording.id.value, recording.id, recording.started_at),
+            status=JobStatus.DONE,
+            completed_stages=frozenset(STAGE_ORDER),
+        )
+        await repository.register(recording, done)
+
+    recordings = await repository.list_done_recordings()
+
+    assert [item.id.value for item in recordings] == ["cdr:new", RID.value]

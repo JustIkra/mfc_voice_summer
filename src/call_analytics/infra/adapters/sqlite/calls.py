@@ -96,6 +96,9 @@ class SqliteCallRepository(CallRepository, JobRepository):
     async def list_retryable(self, max_attempts: int) -> Sequence[CallRecording]:
         return await asyncio.to_thread(self._list_retryable, max_attempts)
 
+    async def list_done_recordings(self) -> Sequence[CallRecording]:
+        return await asyncio.to_thread(self._list_done_recordings)
+
     async def save(self, job: CallProcessingJob) -> None:
         await asyncio.to_thread(self._save, job)
 
@@ -266,6 +269,18 @@ class SqliteCallRepository(CallRepository, JobRepository):
                 ORDER BY started_at, call_id
                 """,
                 (JobStatus.FAILED.value, max_attempts, *_RETRYABLE_ERROR_KINDS),
+            ).fetchall()
+        return [recording for row in rows if (recording := _recording_from_row(row))]
+
+    def _list_done_recordings(self) -> list[CallRecording]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM calls
+                WHERE status = ? AND channel_layout IS NOT NULL
+                ORDER BY started_at DESC, call_id DESC
+                """,
+                (JobStatus.DONE.value,),
             ).fetchall()
         return [recording for row in rows if (recording := _recording_from_row(row))]
 

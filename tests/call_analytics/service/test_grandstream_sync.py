@@ -13,7 +13,7 @@ from call_analytics.infra.adapters.in_memory import (
     InMemoryProcessingQueue,
     InMemorySyncRunRepository,
 )
-from call_analytics.service import GrandstreamSyncService, SyncResult
+from call_analytics.service import AudioBackfillResult, GrandstreamSyncService, SyncResult
 from call_analytics.service.ports import (
     ArchivedRecording,
     ArchivedRecordingFile,
@@ -28,8 +28,11 @@ from call_analytics.service.ports import (
     TelephonyGatewayError,
 )
 from domain import (
+    STAGE_ORDER,
     AudioBlob,
     CallerIdentity,
+    CallProcessingJob,
+    CallRecording,
     ChannelLayout,
     DiscoveredCall,
     JobStatus,
@@ -266,6 +269,51 @@ async def test_retry_clears_workspace_when_archive_still_fails() -> None:
     assert result.failed == 1
     assert queue.published == ()
     assert RID.value not in workspace.audio
+
+
+async def test_backfill_skips_archived_and_continues_after_failure() -> None:
+    already = CallRecording(
+        id=RecordingId("cdr:already"),
+        started_at=NOW,
+        duration=timedelta(seconds=91),
+        channel_layout=ChannelLayout.MONO,
+        source_recording=SourceRecordingIdentity("910", ("already.wav",)),
+    )
+    fresh = replace(
+        already,
+        id=RecordingId("cdr:fresh"),
+        started_at=NOW - timedelta(minutes=1),
+        source_recording=SourceRecordingIdentity("911", ("fresh.wav",)),
+    )
+    broken = replace(
+        already,
+        id=RecordingId("cdr:broken"),
+        started_at=NOW - timedelta(minutes=2),
+        source_recording=SourceRecordingIdentity("912", ("broken.wav",)),
+    )
+    gateway = FakeTelephonyGateway(
+        [],
+        {
+            "fresh.wav": b"RIFFfresh",
+            "broken.wav": TelephonyGatewayError("SERVER", "hidden"),
+        },
+    )
+    archive = FakeArchive()
+    archive.stored.add(already.id)
+    service, calls, _, _, _ = _build_service(gateway, archive=archive)
+    for recording in (broken, fresh, already):
+        done = replace(
+            CallProcessingJob.create(recording.id.value, recording.id, recording.started_at),
+            status=JobStatus.DONE,
+            completed_stages=frozenset(STAGE_ORDER),
+        )
+        await calls.register(recording, done)
+
+    result = await service.backfill_audio(limit=3)
+
+    assert result == AudioBackfillResult(found=2, archived=1, skipped=1, failed=1)
+    assert archive.stored == {already.id, fresh.id}
+    assert gateway.closed is True
 
 
 async def test_sync_uses_exact_thirty_day_window_and_queues_new_valid_call() -> None:

@@ -134,6 +134,17 @@ class InMemoryCallRepository(CallRepository):
             and self._error_kinds.get(key) in _RETRYABLE_ERROR_KINDS
         ]
 
+    async def list_done_recordings(self) -> Sequence[CallRecording]:
+        return sorted(
+            (
+                recording
+                for key, recording in self._recordings.items()
+                if self._statuses.get(key) is JobStatus.DONE
+            ),
+            key=lambda recording: (recording.started_at, recording.id.value),
+            reverse=True,
+        )
+
 
 class InMemoryFinalReportRepository(FinalReportRepository):
     def __init__(self, jobs: JobRepository | None = None) -> None:

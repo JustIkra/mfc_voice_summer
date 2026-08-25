@@ -67,6 +67,10 @@ class CallRepository(ABC):
     async def list_retryable(self, max_attempts: int) -> Sequence[CallRecording]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def list_done_recordings(self) -> Sequence[CallRecording]:
+        raise NotImplementedError
+
 
 class FinalReportRepository(ABC):
     @abstractmethod

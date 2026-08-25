@@ -30,6 +30,14 @@ class SyncResult:
     failed: int
 
 
+@dataclass(frozen=True, slots=True)
+class AudioBackfillResult:
+    found: int
+    archived: int
+    skipped: int
+    failed: int
+
+
 class IngestOutcome(Enum):
     DUPLICATE = auto()
     QUEUED = auto()
@@ -152,6 +160,64 @@ class GrandstreamSyncService:
             except Exception:
                 LOGGER.warning("Grandstream logout failed", exc_info=True)
 
+    async def backfill_audio(self, limit: int) -> AudioBackfillResult:
+        if limit < 1:
+            raise ValueError("backfill limit must be positive")
+        found = archived = skipped = failed = 0
+        try:
+            for recording in await self._calls.list_done_recordings():
+                if await self._archive.locate(recording.id) is not None:
+                    skipped += 1
+                    continue
+                if found >= limit:
+                    break
+                found += 1
+                try:
+                    source = recording.source_recording
+                    if source is None or source.acct_id is None:
+                        raise InvalidRecordingError("recording source metadata is absent")
+                    filenames = source.filenames or await self._gateway.recording_files(
+                        source.acct_id
+                    )
+                    if not filenames:
+                        raise InvalidRecordingError("recording file is absent")
+                    parts = [
+                        await self._gateway.download_recording(filename)
+                        for filename in filenames
+                    ]
+                    await self._workspace.prepare(recording.id, parts)
+                    await self._archive.store(
+                        recording.id,
+                        await self._workspace.load_audio(recording.id),
+                    )
+                    archived += 1
+                except (
+                    InvalidRecordingError,
+                    RecordingArchiveError,
+                    TelephonyGatewayError,
+                ):
+                    failed += 1
+                    LOGGER.warning(
+                        "audio backfill failed call_id=%s",
+                        recording.id.value,
+                        exc_info=True,
+                    )
+                finally:
+                    try:
+                        await self._workspace.clear(recording.id)
+                    except Exception:
+                        LOGGER.warning(
+                            "audio backfill cleanup failed call_id=%s",
+                            recording.id.value,
+                            exc_info=True,
+                        )
+        finally:
+            try:
+                await self._gateway.close()
+            except Exception:
+                LOGGER.warning("Grandstream logout failed", exc_info=True)
+        return AudioBackfillResult(found, archived, skipped, failed)
+
     async def _ingest(self, call: DiscoveredCall, now: datetime) -> IngestOutcome:
         if await self._calls.contains(call.id):
             return IngestOutcome.DUPLICATE
@@ -243,4 +309,4 @@ class GrandstreamSyncService:
         return IngestOutcome.QUEUED
 
 
-__all__ = ["GrandstreamSyncService", "SyncResult"]
+__all__ = ["AudioBackfillResult", "GrandstreamSyncService", "SyncResult"]

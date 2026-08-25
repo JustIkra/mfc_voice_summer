@@ -25,6 +25,18 @@ async def run_once(limit: int | None = None, application: Application | None = N
     )
 
 
+async def run_backfill(limit: int = 250, application: Application | None = None) -> None:
+    app = application or build_application()
+    result = await app.sync.backfill_audio(limit)
+    LOGGER.info(
+        "audio backfill found=%s archived=%s skipped=%s failed=%s",
+        result.found,
+        result.archived,
+        result.skipped,
+        result.failed,
+    )
+
+
 async def run_scheduler(
     application: Application | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(MSK),
@@ -44,7 +56,9 @@ async def run_scheduler(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="grandstream-sync")
-    parser.add_argument("--once", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--once", action="store_true")
+    mode.add_argument("--backfill-audio", action="store_true")
     parser.add_argument("--limit", type=int)
     return parser
 
@@ -54,7 +68,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = _parser().parse_args(argv)
     if args.limit is not None and args.limit < 1:
         raise SystemExit("--limit must be positive")
-    if args.once:
+    if args.backfill_audio:
+        asyncio.run(run_backfill(limit=args.limit or 250))
+    elif args.once:
         asyncio.run(run_once(limit=args.limit))
     else:
         asyncio.run(run_scheduler())
@@ -64,4 +80,4 @@ if __name__ == "__main__":
     main()
 
 
-__all__ = ["main", "next_run", "run_once", "run_scheduler"]
+__all__ = ["main", "next_run", "run_backfill", "run_once", "run_scheduler"]

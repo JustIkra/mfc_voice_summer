@@ -129,7 +129,7 @@ class FilesystemRecordingArchive(RecordingArchive):
     def _locate(self, recording_id: RecordingId) -> ArchivedRecordingFile | None:
         path = self.archive_path(recording_id)
         try:
-            if not path.is_file() or path.stat().st_size <= 0 or not self._probe(path):
+            if not _is_ogg_file(path):
                 return None
             return ArchivedRecordingFile(
                 path=path,
@@ -162,6 +162,13 @@ def _stored(recording_id: RecordingId, size_bytes: int) -> ArchivedRecording:
         codec="opus",
         size_bytes=size_bytes,
     )
+
+
+def _is_ogg_file(path: Path) -> bool:
+    if not path.is_file() or path.stat().st_size <= 4:
+        return False
+    with path.open("rb") as source:
+        return source.read(4) == b"OggS"
 
 
 def _encode_opus(source: Path, target: Path, bitrate: str) -> None:
