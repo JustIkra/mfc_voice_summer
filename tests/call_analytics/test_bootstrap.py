@@ -17,6 +17,7 @@ from call_analytics.service import (
     DashboardService,
     GrandstreamSyncService,
     ProcessingWorker,
+    RecoveringRecordingSource,
 )
 
 
@@ -45,7 +46,7 @@ def test_build_application_wires_sqlite_workspace_worker_and_sync(tmp_path: Path
     assert isinstance(app.worker, ProcessingWorker)
     assert isinstance(app.sync, GrandstreamSyncService)
     assert isinstance(app.dashboard, DashboardService)
-    assert isinstance(app.source, FilesystemRecordingWorkspace)
+    assert isinstance(app.source, RecoveringRecordingSource)
     assert isinstance(app.artifacts, FilesystemRecordingWorkspace)
     assert isinstance(app.jobs, SqliteCallRepository)
     assert isinstance(app.calls, SqliteCallRepository)
@@ -78,3 +79,11 @@ def test_settings_from_env_reads_grandstream_and_sqlite(monkeypatch, tmp_path: P
     assert settings.sync_time == time(2, 0)
     assert settings.sync_batch_limit == 750
     assert settings.sync_enabled is True
+
+
+def test_settings_default_sync_batch_limit_is_3000(monkeypatch) -> None:
+    monkeypatch.delenv("VOICE_SYNC_BATCH_LIMIT", raising=False)
+
+    settings = AppSettings.from_env()
+
+    assert settings.sync_batch_limit == 3000

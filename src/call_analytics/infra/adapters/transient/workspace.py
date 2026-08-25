@@ -62,8 +62,13 @@ class FilesystemRecordingWorkspace(RecordingWorkspace, ArtifactStore, CallRecord
         await asyncio.to_thread(self._clear_files, call_id)
         self._clear_objects(call_id)
 
-    async def clear_stale(self, older_than: datetime) -> int:
-        return await asyncio.to_thread(self._clear_stale, older_than)
+    async def clear_stale(
+        self,
+        older_than: datetime,
+        protected: Sequence[RecordingId] = (),
+    ) -> int:
+        protected_keys = frozenset(_workspace_key(recording_id) for recording_id in protected)
+        return await asyncio.to_thread(self._clear_stale, older_than, protected_keys)
 
     async def list_recordings(self, period: Period) -> Sequence[CallRecording]:
         return [
@@ -201,7 +206,7 @@ class FilesystemRecordingWorkspace(RecordingWorkspace, ArtifactStore, CallRecord
         self._reports.pop(key, None)
         self._report_pdfs.pop(key, None)
 
-    def _clear_stale(self, older_than: datetime) -> int:
+    def _clear_stale(self, older_than: datetime, protected_keys: frozenset[str]) -> int:
         jobs_directory = self._host_directory / "jobs"
         if not jobs_directory.is_dir():
             return 0
@@ -209,6 +214,8 @@ class FilesystemRecordingWorkspace(RecordingWorkspace, ArtifactStore, CallRecord
         cleared = 0
         for candidate in jobs_directory.iterdir():
             if not candidate.is_dir() or _HASHED_JOB.fullmatch(candidate.name) is None:
+                continue
+            if candidate.name in protected_keys:
                 continue
             if candidate.stat().st_mtime >= cutoff:
                 continue

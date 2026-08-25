@@ -29,6 +29,7 @@ from call_analytics.service import (
     GrandstreamSyncService,
     PipelineWorkspace,
     ProcessingWorker,
+    RecoveringRecordingSource,
 )
 from call_analytics.service.ports import (
     ArtifactStore,
@@ -68,7 +69,9 @@ class AppSettings:
     grandstream_api_timeout_seconds: int = 120
     grandstream_download_timeout_seconds: int = 900
     sync_time: time = time(2, 0)
-    sync_batch_limit: int = 1000
+    sync_batch_limit: int = 3000
+    worker_processing_timeout_seconds: float = 1800.0
+    worker_max_stage_attempts: int = 8
     sync_enabled: bool = False
     sync_run_on_start: bool = False
 
@@ -114,7 +117,11 @@ class AppSettings:
                 os.getenv("VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS", "900")
             ),
             sync_time=_parse_time(os.getenv("VOICE_SYNC_TIME", "02:00")),
-            sync_batch_limit=_positive_int("VOICE_SYNC_BATCH_LIMIT", 1000),
+            sync_batch_limit=_positive_int("VOICE_SYNC_BATCH_LIMIT", 3000),
+            worker_processing_timeout_seconds=float(
+                os.getenv("VOICE_WORKER_PROCESSING_TIMEOUT_SECONDS", "1800")
+            ),
+            worker_max_stage_attempts=_positive_int("VOICE_WORKER_STALE_MAX_ATTEMPTS", 8),
             sync_enabled=_env_bool("VOICE_SYNC_ENABLED", False),
             sync_run_on_start=_env_bool("VOICE_SYNC_RUN_ON_START", False),
         )
@@ -159,8 +166,24 @@ def build_application(settings: AppSettings | None = None) -> Application:
         host_directory=settings.staging_dir,
         model_directory=settings.container_staging_dir,
     )
+    gateway = GrandstreamClient(
+        base_url=settings.grandstream_url,
+        username=settings.grandstream_user,
+        password=settings.grandstream_password,
+        queue_extension=settings.grandstream_queue,
+        queue_name=settings.grandstream_queue_name,
+        ca_file=settings.grandstream_ca_file,
+        api_timeout_seconds=settings.grandstream_api_timeout_seconds,
+        download_timeout_seconds=settings.grandstream_download_timeout_seconds,
+    )
+    recording_source = RecoveringRecordingSource(
+        primary=recording_workspace,
+        workspace=recording_workspace,
+        calls=calls,
+        gateway=gateway,
+    )
     pipeline = CallProcessingService(
-        source=recording_workspace,
+        source=recording_source,
         transcriber=VoiceModelTranscriber(
             base_url=settings.asr_url,
             audio_stager=audio_stager,
@@ -202,16 +225,8 @@ def build_application(settings: AppSettings | None = None) -> Application:
         jobs=calls,
         requeue_failed=False,
         workspace=recording_workspace,
-    )
-    gateway = GrandstreamClient(
-        base_url=settings.grandstream_url,
-        username=settings.grandstream_user,
-        password=settings.grandstream_password,
-        queue_extension=settings.grandstream_queue,
-        queue_name=settings.grandstream_queue_name,
-        ca_file=settings.grandstream_ca_file,
-        api_timeout_seconds=settings.grandstream_api_timeout_seconds,
-        download_timeout_seconds=settings.grandstream_download_timeout_seconds,
+        processing_timeout_seconds=settings.worker_processing_timeout_seconds,
+        max_stage_attempts=settings.worker_max_stage_attempts,
     )
     sync = GrandstreamSyncService(
         gateway=gateway,
@@ -229,7 +244,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
     )
     return Application(
         settings=settings,
-        source=recording_workspace,
+        source=recording_source,
         jobs=calls,
         artifacts=recording_workspace,
         calls=calls,

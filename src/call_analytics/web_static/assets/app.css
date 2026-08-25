@@ -432,12 +432,17 @@ h1 {
   padding: 1.1rem;
 }
 
-label {
+label,
+.filter-control {
   display: grid;
   gap: 0.4rem;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.field-label {
+  display: block;
 }
 
 input,
@@ -449,6 +454,95 @@ select {
   padding: 0 0.8rem;
   color: var(--ink);
   background: white;
+}
+
+.custom-select {
+  position: relative;
+}
+
+.custom-select-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  padding: 0 0.8rem;
+  color: var(--ink);
+  background: white;
+  cursor: pointer;
+  text-align: left;
+}
+
+.custom-select-chevron {
+  width: 0.58rem;
+  height: 0.58rem;
+  flex: 0 0 auto;
+  border-right: 0.12rem solid currentColor;
+  border-bottom: 0.12rem solid currentColor;
+  transform: translateY(-0.12rem) rotate(45deg);
+  transition: transform 140ms ease;
+}
+
+.custom-select.is-open .custom-select-chevron {
+  transform: translateY(0.12rem) rotate(225deg);
+}
+
+.custom-select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.72rem;
+  padding: 0.35rem;
+  background: white;
+  box-shadow: 0 0.85rem 2rem rgba(16, 33, 43, 0.18);
+}
+
+.custom-select-menu[hidden] {
+  display: none;
+}
+
+.custom-select-menu button {
+  position: relative;
+  width: 100%;
+  min-height: 2.4rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0 0.7rem;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.custom-select-menu button:hover,
+.custom-select-menu button:focus-visible {
+  background: var(--teal-soft);
+}
+
+.custom-select-menu button[aria-selected="true"] {
+  padding-left: 1.35rem;
+  color: var(--navy);
+  background: color-mix(in srgb, var(--teal-soft) 72%, white);
+  font-weight: 700;
+}
+
+.custom-select-menu button[aria-selected="true"]::before {
+  position: absolute;
+  left: 0.58rem;
+  width: 0.42rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--teal);
+  content: "";
 }
 
 .filter-actions {

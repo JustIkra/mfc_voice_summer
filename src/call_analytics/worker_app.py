@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 
 from call_analytics.bootstrap import MSK, build_application
+from domain import JobStatus
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,15 +15,22 @@ async def run_worker() -> None:
     logging.basicConfig(level=os.getenv("VOICE_LOG_LEVEL", "INFO"))
     idle_sleep = float(os.getenv("VOICE_WORKER_IDLE_SLEEP_SECONDS", "1"))
     app = build_application()
+    active_jobs = [
+        *await app.jobs.list_by_status(JobStatus.PENDING),
+        *await app.jobs.list_by_status(JobStatus.RUNNING),
+    ]
+    cleared = await app.recording_workspace.clear_stale(
+        datetime.now(MSK) - timedelta(hours=24),
+        protected=tuple(job.recording_id for job in active_jobs),
+    )
     recovered = await app.worker.recover_interrupted_jobs()
-    cleared = await app.recording_workspace.clear_stale(datetime.now(MSK) - timedelta(hours=24))
     if recovered:
         LOGGER.warning("recovered %s interrupted jobs", recovered)
     if cleared:
         LOGGER.warning("cleared %s stale recording workspaces", cleared)
     watchdog_interval = float(os.getenv("VOICE_WORKER_WATCHDOG_INTERVAL_SECONDS", "60"))
     stale_after = float(os.getenv("VOICE_WORKER_STALE_AFTER_SECONDS", "1800"))
-    stale_max_attempts = int(os.getenv("VOICE_WORKER_STALE_MAX_ATTEMPTS", "8"))
+    stale_max_attempts = app.settings.worker_max_stage_attempts
 
     async def process_forever() -> None:
         while True:

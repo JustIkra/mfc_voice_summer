@@ -68,6 +68,25 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "new WebSocket(" not in script
 
 
+def test_sort_control_uses_full_width_custom_dropdown_below_field() -> None:
+    html = _read("index.html")
+    script = _read("assets/app.js")
+    css = _read("assets/app.css")
+
+    assert 'id="sortSelect" type="hidden"' in html
+    assert 'id="sortTrigger"' in html
+    assert 'id="sortMenu" role="listbox"' in html
+    assert 'data-sort="asc"' in html
+    assert 'data-sort="desc"' in html
+    assert "openSortMenu" in script
+    assert "closeSortMenu" in script
+    assert "selectSort" in script
+    assert ".custom-select-trigger" in css
+    assert ".custom-select-menu" in css
+    assert "top: calc(100% + 0.35rem)" in css
+    assert "width: 100%" in css
+
+
 def test_styles_use_approved_tokens_fonts_and_breakpoints() -> None:
     css = _read("assets/app.css").lower()
 

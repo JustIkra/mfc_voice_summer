@@ -40,6 +40,10 @@ const nodes = {
   satisfaction: document.querySelector("#satisfactionSelect"),
   resolution: document.querySelector("#resolutionSelect"),
   sort: document.querySelector("#sortSelect"),
+  sortControl: document.querySelector("#sortControl"),
+  sortTrigger: document.querySelector("#sortTrigger"),
+  sortMenu: document.querySelector("#sortMenu"),
+  sortValue: document.querySelector("#sortValue"),
   search: document.querySelector("#callSearch"),
   journal: document.querySelector("#callJournal"),
   operators: document.querySelector("#operatorBoard"),
@@ -64,7 +68,7 @@ document.querySelector("#resetFilters").addEventListener("click", () => {
   nodes.operator.value = "";
   nodes.satisfaction.value = "";
   nodes.resolution.value = "";
-  nodes.sort.value = "asc";
+  selectSort("asc");
   nodes.search.value = "";
   readFilters();
   state.page = 1;
@@ -89,11 +93,75 @@ nodes.pagination.addEventListener("click", (event) => {
   refresh({ keepOperators: true });
 });
 
+nodes.sortTrigger.addEventListener("click", () => {
+  if (nodes.sortMenu.hidden) openSortMenu();
+  else closeSortMenu();
+});
+
+nodes.sortTrigger.addEventListener("keydown", (event) => {
+  if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return;
+  event.preventDefault();
+  openSortMenu(event.key === "ArrowUp" ? -1 : 1);
+});
+
+nodes.sortMenu.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-sort]");
+  if (!option) return;
+  selectSort(option.dataset.sort);
+  closeSortMenu({ restoreFocus: true });
+});
+
+nodes.sortMenu.addEventListener("keydown", (event) => {
+  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
+  const current = Math.max(options.indexOf(document.activeElement), 0);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSortMenu({ restoreFocus: true });
+  } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    options[(current + direction + options.length) % options.length].focus();
+  } else if (event.key === "Home" || event.key === "End") {
+    event.preventDefault();
+    options[event.key === "Home" ? 0 : options.length - 1].focus();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (!nodes.sortControl.contains(event.target)) closeSortMenu();
+});
+
 document.querySelector("#syncStatus").addEventListener("click", () => {
   showToast(document.querySelector("#syncStatus").title || "Синхронизация ещё не запускалась");
 });
 
 window.setInterval(pollSyncStatus, 10000);
+
+function openSortMenu(focusDirection = 0) {
+  nodes.sortMenu.hidden = false;
+  nodes.sortTrigger.setAttribute("aria-expanded", "true");
+  nodes.sortControl.classList.add("is-open");
+  if (focusDirection === 0) return;
+  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
+  const selectedIndex = Math.max(options.findIndex((option) => option.dataset.sort === nodes.sort.value), 0);
+  const targetIndex = focusDirection < 0 ? options.length - 1 : selectedIndex;
+  options[targetIndex].focus();
+}
+
+function closeSortMenu({ restoreFocus = false } = {}) {
+  nodes.sortMenu.hidden = true;
+  nodes.sortTrigger.setAttribute("aria-expanded", "false");
+  nodes.sortControl.classList.remove("is-open");
+  if (restoreFocus) nodes.sortTrigger.focus();
+}
+
+function selectSort(value) {
+  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
+  const selected = options.find((option) => option.dataset.sort === value) || options[0];
+  nodes.sort.value = selected.dataset.sort;
+  nodes.sortValue.textContent = selected.textContent;
+  options.forEach((option) => option.setAttribute("aria-selected", String(option === selected)));
+}
 
 async function pollSyncStatus() {
   if (document.hidden) return;

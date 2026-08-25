@@ -82,7 +82,19 @@
           <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
           <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
           <label>Вопрос решён<select id="resolutionSelect"><option value="">Все результаты</option><option value="yes">Да</option><option value="partial">Частично</option><option value="no">Нет</option><option value="unknown">Не определено</option></select></label>
-          <label>Сортировка<select id="sortSelect"><option value="asc">Сначала ранние</option><option value="desc">Сначала новые</option></select></label>
+          <div class="filter-control sort-field">
+            <span class="field-label" id="sortFieldLabel">Сортировка</span>
+            <div class="custom-select" id="sortControl">
+              <input id="sortSelect" type="hidden" value="asc" />
+              <button class="custom-select-trigger" id="sortTrigger" type="button" aria-labelledby="sortFieldLabel sortValue" aria-haspopup="listbox" aria-expanded="false">
+                <span id="sortValue">Сначала ранние</span><span class="custom-select-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="custom-select-menu" id="sortMenu" role="listbox" aria-labelledby="sortFieldLabel" hidden>
+                <button type="button" role="option" data-sort="asc" aria-selected="true">Сначала ранние</button>
+                <button type="button" role="option" data-sort="desc" aria-selected="false">Сначала новые</button>
+              </div>
+            </div>
+          </div>
           <label class="search-field">Поиск<input id="callSearch" type="search" placeholder="ID, имя, тема" autocomplete="off" /></label>
           <div class="filter-actions">
             <button class="button primary" type="submit">Применить фильтры</button>

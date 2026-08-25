@@ -118,8 +118,8 @@ class FakeWorkspace(RecordingWorkspace):
     async def clear(self, call_id: RecordingId) -> None:
         self.audio.pop(call_id.value, None)
 
-    async def clear_stale(self, older_than: datetime) -> int:
-        del older_than
+    async def clear_stale(self, older_than: datetime, protected=()) -> int:
+        del older_than, protected
         return 0
 
 

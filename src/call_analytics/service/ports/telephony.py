@@ -72,7 +72,11 @@ class RecordingWorkspace(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def clear_stale(self, older_than: datetime) -> int:
+    async def clear_stale(
+        self,
+        older_than: datetime,
+        protected: Sequence[RecordingId] = (),
+    ) -> int:
         raise NotImplementedError
 
 

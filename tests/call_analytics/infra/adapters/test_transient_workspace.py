@@ -66,3 +66,23 @@ async def test_workspace_clears_only_stale_hashed_job_directories(tmp_path: Path
     assert cleared == 1
     assert not workspace.path_for(old_id).exists()
     assert workspace.path_for(fresh_id).exists()
+
+
+async def test_workspace_preserves_protected_stale_job_directories(tmp_path: Path) -> None:
+    workspace = FilesystemRecordingWorkspace(tmp_path, "/data/staging")
+    protected_id = RecordingId("protected")
+    orphaned_id = RecordingId("orphaned")
+    await workspace.prepare(protected_id, [_wav()])
+    await workspace.prepare(orphaned_id, [_wav()])
+    old_timestamp = datetime(2026, 8, 20, tzinfo=MSK).timestamp()
+    os.utime(workspace.path_for(protected_id), (old_timestamp, old_timestamp))
+    os.utime(workspace.path_for(orphaned_id), (old_timestamp, old_timestamp))
+
+    cleared = await workspace.clear_stale(
+        datetime(2026, 8, 21, tzinfo=MSK),
+        protected=(protected_id,),
+    )
+
+    assert cleared == 1
+    assert workspace.path_for(protected_id).exists()
+    assert not workspace.path_for(orphaned_id).exists()

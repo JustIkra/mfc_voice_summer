@@ -66,7 +66,7 @@ class TrackingWorkspace(RecordingWorkspace):
     async def clear(self, call_id: RecordingId) -> None:
         self.cleared.append(call_id)
 
-    async def clear_stale(self, older_than):
+    async def clear_stale(self, older_than, protected=()):
         raise AssertionError("clear_stale is not used by pipeline tests")
 
 

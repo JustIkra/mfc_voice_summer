@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
@@ -68,6 +69,20 @@ class SkippedPipeline(FailingPipeline):
         )
 
 
+class BlockingPipeline(FailingPipeline):
+    def __init__(self, jobs: InMemoryJobRepository) -> None:
+        self._jobs = jobs
+
+    async def process(self, recording_id: RecordingId) -> CallProcessingJob:
+        job = await self._jobs.get(recording_id.value)
+        assert job is not None
+        stage = job.next_stage()
+        assert stage is not None
+        await self._jobs.save(job.start_stage(stage))
+        await asyncio.Event().wait()
+        raise AssertionError("blocking pipeline must be cancelled by the worker timeout")
+
+
 class ClearingWorkspace(RecordingWorkspace):
     def __init__(self) -> None:
         self.cleared: list[RecordingId] = []
@@ -81,7 +96,7 @@ class ClearingWorkspace(RecordingWorkspace):
     async def clear(self, call_id: RecordingId) -> None:
         self.cleared.append(call_id)
 
-    async def clear_stale(self, older_than):
+    async def clear_stale(self, older_than, protected=()):
         raise AssertionError("clear_stale is not used")
 
 
@@ -154,6 +169,33 @@ async def test_worker_clears_workspace_when_pipeline_raises_unexpected_error() -
         await worker.run_once()
 
     assert workspace.cleared == [RID]
+
+
+async def test_worker_requeues_timed_out_processing_without_clearing_audio() -> None:
+    queue = InMemoryProcessingQueue()
+    jobs = InMemoryJobRepository()
+    workspace = ClearingWorkspace()
+    await jobs.save(CallProcessingJob.create(RID.value, RID, NOW))
+    await queue.publish(RID)
+    worker = ProcessingWorker(
+        queue=queue,
+        pipeline=BlockingPipeline(jobs),
+        jobs=jobs,
+        workspace=workspace,
+        processing_timeout_seconds=0.01,
+        max_stage_attempts=8,
+    )
+
+    processed = await worker.run_once()
+
+    recovered = await jobs.get(RID.value)
+    message = await queue.get()
+    assert processed is True
+    assert recovered is not None and recovered.status is JobStatus.PENDING
+    assert recovered.attempts[JobStage.TRANSCRIBE] == 1
+    assert queue.rejected == ((RID.value, False),)
+    assert message is not None and message.recording_id == RID
+    assert workspace.cleared == []
 
 
 async def test_worker_recovers_running_jobs_left_by_restart() -> None:
