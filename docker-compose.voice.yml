@@ -19,8 +19,12 @@ services:
       - .env
     environment:
       VOICE_DB_PATH: /data/db/call-analytics.sqlite3
+      VOICE_ARCHIVE_DIR: /data/recordings
+      VOICE_ARCHIVE_BITRATE: ${VOICE_ARCHIVE_BITRATE:-24k}
+      VOICE_ARCHIVE_RESERVE_BYTES: ${VOICE_ARCHIVE_RESERVE_BYTES:-2147483648}
     volumes:
       - ./.data:/data/db
+      - /var/recordings-voice-summer:/data/recordings:ro
     expose:
       - "8000"
     extra_hosts:
@@ -102,9 +106,13 @@ services:
       VOICE_SYNC_BATCH_LIMIT: ${VOICE_SYNC_BATCH_LIMIT:-3000}
       VOICE_SYNC_ENABLED: ${VOICE_SYNC_ENABLED:-no}
       VOICE_SYNC_RUN_ON_START: ${VOICE_SYNC_RUN_ON_START:-no}
+      VOICE_ARCHIVE_DIR: /data/recordings
+      VOICE_ARCHIVE_BITRATE: ${VOICE_ARCHIVE_BITRATE:-24k}
+      VOICE_ARCHIVE_RESERVE_BYTES: ${VOICE_ARCHIVE_RESERVE_BYTES:-2147483648}
     volumes:
       - ./.data:/data/db
       - ./.staging:/data/staging
+      - /var/recordings-voice-summer:/data/recordings
     depends_on:
       rabbitmq:
         condition: service_healthy

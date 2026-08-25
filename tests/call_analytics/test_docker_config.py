@@ -40,17 +40,25 @@ def test_qwen_default_context_covers_long_call_reports() -> None:
     assert command[max_model_len_index] == "${VOICE_QWEN_MAX_MODEL_LEN:-131072}"
 
 
-def test_runtime_uses_sqlite_and_transient_staging_without_archive_mounts() -> None:
+def test_runtime_mounts_recording_archive_with_least_privilege() -> None:
     compose = yaml.safe_load(Path("docker-compose.voice.yml").read_text(encoding="utf-8"))
-    web_volumes = compose["services"]["web"]["volumes"]
-    worker_volumes = compose["services"]["worker"]["volumes"]
-    sync_volumes = compose["services"]["grandstream-sync"]["volumes"]
+    web = compose["services"]["web"]
+    worker = compose["services"]["worker"]
+    sync = compose["services"]["grandstream-sync"]
+    web_volumes = web["volumes"]
+    worker_volumes = worker["volumes"]
+    sync_volumes = sync["volumes"]
 
     assert "./.data:/data/db" in web_volumes
     assert "./.data:/data/db" in worker_volumes
     assert "./.data:/data/db" in sync_volumes
     assert "./.staging:/data/staging" in worker_volumes
     assert "./.staging:/data/staging" in sync_volumes
+    assert "/var/recordings-voice-summer:/data/recordings:ro" in web_volumes
+    assert "/var/recordings-voice-summer:/data/recordings" in sync_volumes
+    assert all("/data/recordings" not in item for item in worker_volumes)
+    assert web["environment"]["VOICE_ARCHIVE_DIR"] == "/data/recordings"
+    assert sync["environment"]["VOICE_ARCHIVE_DIR"] == "/data/recordings"
     serialized = Path("docker-compose.voice.yml").read_text(encoding="utf-8")
     assert "/media/audio" not in serialized
     assert "VOICE_UPLOADS_DIR" not in serialized
