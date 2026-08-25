@@ -89,7 +89,9 @@ def test_filter_dropdowns_share_aligned_full_width_custom_control() -> None:
     assert ".custom-select-menu" in css
     assert "top: calc(100% + 0.35rem)" in css
     assert "right: auto" in css
-    assert "width: calc(100% + 3rem)" in css
+    assert "width: max-content" in css
+    assert "min-width: 100%" in css
+    assert "max-width: min(32rem, calc(100vw - 2rem))" in css
     assert "padding: 0 0.8rem 0 2rem" in css
     assert "top: 50%" in css
 
