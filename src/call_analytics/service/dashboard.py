@@ -52,6 +52,7 @@ class OperatorSummary:
     name: str
     total_calls: int
     satisfied_percent: int
+    resolved_percent: int
     attention_calls: int
 
 

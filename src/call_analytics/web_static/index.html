@@ -72,26 +72,66 @@
         </article>
 
         <aside class="panel operators-panel">
-          <div class="panel-header"><div><h2>Операторы</h2><p>ID, нагрузка и качество</p></div><span class="utility" id="operatorCount">0 человек</span></div>
+          <div class="panel-header"><div><h2>Операторы</h2><p>Доля звонков с позитивной эмоцией клиента у каждого оператора и доля обращений, где вопрос решён полностью. Оба процента считаются отдельно для каждого оператора.</p></div><span class="utility" id="operatorCount">0 человек</span></div>
           <div class="operator-list" id="operatorBoard"><div class="empty">Нет данных за выбранный период.</div></div>
         </aside>
 
         <form class="filters journal-filters" id="filterForm">
           <label>Дата с<input id="dateFrom" type="date" /></label>
           <label>Дата по<input id="dateTo" type="date" /></label>
-          <label>Оператор<select id="operatorSelect"><option value="">Все операторы</option></select></label>
-          <label>Эмоция клиента<select id="satisfactionSelect"><option value="">Все эмоции</option><option value="satisfied">Позитивная</option><option value="neutral">Нейтральная</option><option value="dissatisfied">Негативная</option></select></label>
-          <label>Вопрос решён<select id="resolutionSelect"><option value="">Все результаты</option><option value="yes">Да</option><option value="partial">Частично</option><option value="no">Нет</option><option value="unknown">Не определено</option></select></label>
-          <div class="filter-control sort-field">
+          <div class="filter-control">
+            <span class="field-label" id="operatorFieldLabel">Оператор</span>
+            <div class="custom-select" id="operatorControl" data-custom-select>
+              <input id="operatorSelect" type="hidden" value="" />
+              <button class="custom-select-trigger" id="operatorTrigger" type="button" aria-labelledby="operatorFieldLabel operatorValue" aria-controls="operatorMenu" aria-haspopup="listbox" aria-expanded="false">
+                <span id="operatorValue">Все операторы</span><span class="custom-select-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="custom-select-menu" id="operatorMenu" role="listbox" aria-labelledby="operatorFieldLabel" hidden>
+                <button type="button" role="option" data-select-value="" aria-selected="true">Все операторы</button>
+              </div>
+            </div>
+          </div>
+          <div class="filter-control">
+            <span class="field-label" id="satisfactionFieldLabel">Эмоция клиента</span>
+            <div class="custom-select" id="satisfactionControl" data-custom-select>
+              <input id="satisfactionSelect" type="hidden" value="" />
+              <button class="custom-select-trigger" id="satisfactionTrigger" type="button" aria-labelledby="satisfactionFieldLabel satisfactionValue" aria-controls="satisfactionMenu" aria-haspopup="listbox" aria-expanded="false">
+                <span id="satisfactionValue">Все эмоции</span><span class="custom-select-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="custom-select-menu" id="satisfactionMenu" role="listbox" aria-labelledby="satisfactionFieldLabel" hidden>
+                <button type="button" role="option" data-select-value="" aria-selected="true">Все эмоции</button>
+                <button type="button" role="option" data-select-value="satisfied" aria-selected="false">Позитивная</button>
+                <button type="button" role="option" data-select-value="neutral" aria-selected="false">Нейтральная</button>
+                <button type="button" role="option" data-select-value="dissatisfied" aria-selected="false">Негативная</button>
+              </div>
+            </div>
+          </div>
+          <div class="filter-control">
+            <span class="field-label" id="resolutionFieldLabel">Вопрос решён</span>
+            <div class="custom-select" id="resolutionControl" data-custom-select>
+              <input id="resolutionSelect" type="hidden" value="" />
+              <button class="custom-select-trigger" id="resolutionTrigger" type="button" aria-labelledby="resolutionFieldLabel resolutionValue" aria-controls="resolutionMenu" aria-haspopup="listbox" aria-expanded="false">
+                <span id="resolutionValue">Все результаты</span><span class="custom-select-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="custom-select-menu" id="resolutionMenu" role="listbox" aria-labelledby="resolutionFieldLabel" hidden>
+                <button type="button" role="option" data-select-value="" aria-selected="true">Все результаты</button>
+                <button type="button" role="option" data-select-value="yes" aria-selected="false">Да</button>
+                <button type="button" role="option" data-select-value="partial" aria-selected="false">Частично</button>
+                <button type="button" role="option" data-select-value="no" aria-selected="false">Нет</button>
+                <button type="button" role="option" data-select-value="unknown" aria-selected="false">Не определено</button>
+              </div>
+            </div>
+          </div>
+          <div class="filter-control">
             <span class="field-label" id="sortFieldLabel">Сортировка</span>
-            <div class="custom-select" id="sortControl">
+            <div class="custom-select" id="sortControl" data-custom-select>
               <input id="sortSelect" type="hidden" value="asc" />
-              <button class="custom-select-trigger" id="sortTrigger" type="button" aria-labelledby="sortFieldLabel sortValue" aria-haspopup="listbox" aria-expanded="false">
+              <button class="custom-select-trigger" id="sortTrigger" type="button" aria-labelledby="sortFieldLabel sortValue" aria-controls="sortMenu" aria-haspopup="listbox" aria-expanded="false">
                 <span id="sortValue">Сначала ранние</span><span class="custom-select-chevron" aria-hidden="true"></span>
               </button>
               <div class="custom-select-menu" id="sortMenu" role="listbox" aria-labelledby="sortFieldLabel" hidden>
-                <button type="button" role="option" data-sort="asc" aria-selected="true">Сначала ранние</button>
-                <button type="button" role="option" data-sort="desc" aria-selected="false">Сначала новые</button>
+                <button type="button" role="option" data-select-value="asc" aria-selected="true">Сначала ранние</button>
+                <button type="button" role="option" data-select-value="desc" aria-selected="false">Сначала новые</button>
               </div>
             </div>
           </div>

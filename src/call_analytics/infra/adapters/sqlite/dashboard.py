@@ -91,6 +91,10 @@ class SqliteDashboardRepository(DashboardRepository):
                            100.0 * SUM(CASE WHEN r.satisfaction = 'satisfied' THEN 1 ELSE 0 END)
                            / COUNT(*)
                        ) AS INTEGER) AS satisfied_percent,
+                       CAST(ROUND(
+                           100.0 * SUM(CASE WHEN r.question_resolved = 'yes' THEN 1 ELSE 0 END)
+                           / COUNT(*)
+                       ) AS INTEGER) AS resolved_percent,
                        SUM(r.attention_required) AS attention_calls
                 FROM calls c
                 JOIN reports r ON r.call_id = c.call_id
@@ -193,6 +197,7 @@ def _operator_from_row(row: sqlite3.Row) -> OperatorSummary:
         name=str(row["operator_name"]),
         total_calls=int(row["total_calls"]),
         satisfied_percent=int(row["satisfied_percent"]),
+        resolved_percent=int(row["resolved_percent"]),
         attention_calls=int(row["attention_calls"]),
     )
 

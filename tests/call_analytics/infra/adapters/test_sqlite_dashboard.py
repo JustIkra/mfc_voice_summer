@@ -144,6 +144,9 @@ async def test_summary_and_operator_rows_exclude_failed_calls(tmp_path: Path) ->
     assert summary.satisfaction == {"satisfied": 1, "neutral": 0, "dissatisfied": 1}
     assert summary.resolution == {"yes": 1, "partial": 0, "no": 1, "unknown": 0}
     assert [(item.id, item.total_calls) for item in operators] == [(14, 1), (15, 1)]
+    assert [
+        (item.extension, item.satisfied_percent, item.resolved_percent) for item in operators
+    ] == [("11198", 100, 100), ("11195", 0, 0)]
 
 
 async def test_processing_counts_include_non_report_jobs(tmp_path: Path) -> None:

@@ -352,6 +352,7 @@ h1 {
 }
 
 .resolution-grid .partial {
+  color: white;
   background: var(--amber);
 }
 
@@ -458,6 +459,11 @@ select {
 
 .custom-select {
   position: relative;
+  min-width: 0;
+}
+
+.custom-select.is-open {
+  z-index: 40;
 }
 
 .custom-select-trigger {
@@ -474,6 +480,13 @@ select {
   background: white;
   cursor: pointer;
   text-align: left;
+}
+
+.custom-select-trigger > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .custom-select-chevron {
@@ -495,14 +508,17 @@ select {
   z-index: 30;
   top: calc(100% + 0.35rem);
   left: 0;
+  right: 0;
   display: grid;
-  width: 100%;
+  width: auto;
+  max-height: 18rem;
   gap: 0.2rem;
   border: 1px solid var(--line);
   border-radius: 0.72rem;
   padding: 0.35rem;
   background: white;
   box-shadow: 0 0.85rem 2rem rgba(16, 33, 43, 0.18);
+  overflow-y: auto;
 }
 
 .custom-select-menu[hidden] {
@@ -515,7 +531,7 @@ select {
   min-height: 2.4rem;
   border: 0;
   border-radius: 0.5rem;
-  padding: 0 0.7rem;
+  padding: 0 0.8rem 0 2rem;
   color: var(--ink);
   background: transparent;
   cursor: pointer;
@@ -529,7 +545,6 @@ select {
 }
 
 .custom-select-menu button[aria-selected="true"] {
-  padding-left: 1.35rem;
   color: var(--navy);
   background: color-mix(in srgb, var(--teal-soft) 72%, white);
   font-weight: 700;
@@ -537,12 +552,14 @@ select {
 
 .custom-select-menu button[aria-selected="true"]::before {
   position: absolute;
-  left: 0.58rem;
+  top: 50%;
+  left: 0.85rem;
   width: 0.42rem;
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--teal);
   content: "";
+  transform: translateY(-50%);
 }
 
 .filter-actions {
@@ -728,9 +745,35 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+.operator-metrics {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
 .operator-score {
+  display: grid;
+  min-width: 3.2rem;
+  justify-items: end;
   font-family: "IBM Plex Mono", monospace;
   font-weight: 600;
+}
+
+.operator-score strong {
+  color: var(--teal);
+  font-size: 1rem;
+}
+
+.operator-score.resolved strong {
+  color: var(--green);
+}
+
+.operator-score small {
+  font-family: "Onest", "Segoe UI Variable", sans-serif;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .table-panel {

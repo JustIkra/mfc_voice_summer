@@ -40,10 +40,6 @@ const nodes = {
   satisfaction: document.querySelector("#satisfactionSelect"),
   resolution: document.querySelector("#resolutionSelect"),
   sort: document.querySelector("#sortSelect"),
-  sortControl: document.querySelector("#sortControl"),
-  sortTrigger: document.querySelector("#sortTrigger"),
-  sortMenu: document.querySelector("#sortMenu"),
-  sortValue: document.querySelector("#sortValue"),
   search: document.querySelector("#callSearch"),
   journal: document.querySelector("#callJournal"),
   operators: document.querySelector("#operatorBoard"),
@@ -53,6 +49,8 @@ const nodes = {
   downloadPdf: document.querySelector("#downloadPdf"),
   toast: document.querySelector("#toast"),
 };
+
+const customSelects = [...document.querySelectorAll("[data-custom-select]")].map(setupCustomSelect);
 
 initializeDates();
 
@@ -65,10 +63,10 @@ nodes.form.addEventListener("submit", (event) => {
 
 document.querySelector("#resetFilters").addEventListener("click", () => {
   initializeDates();
-  nodes.operator.value = "";
-  nodes.satisfaction.value = "";
-  nodes.resolution.value = "";
-  selectSort("asc");
+  setCustomSelectValue(nodes.operator, "");
+  setCustomSelectValue(nodes.satisfaction, "");
+  setCustomSelectValue(nodes.resolution, "");
+  setCustomSelectValue(nodes.sort, "asc");
   nodes.search.value = "";
   readFilters();
   state.page = 1;
@@ -93,42 +91,10 @@ nodes.pagination.addEventListener("click", (event) => {
   refresh({ keepOperators: true });
 });
 
-nodes.sortTrigger.addEventListener("click", () => {
-  if (nodes.sortMenu.hidden) openSortMenu();
-  else closeSortMenu();
-});
-
-nodes.sortTrigger.addEventListener("keydown", (event) => {
-  if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return;
-  event.preventDefault();
-  openSortMenu(event.key === "ArrowUp" ? -1 : 1);
-});
-
-nodes.sortMenu.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-sort]");
-  if (!option) return;
-  selectSort(option.dataset.sort);
-  closeSortMenu({ restoreFocus: true });
-});
-
-nodes.sortMenu.addEventListener("keydown", (event) => {
-  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
-  const current = Math.max(options.indexOf(document.activeElement), 0);
-  if (event.key === "Escape") {
-    event.preventDefault();
-    closeSortMenu({ restoreFocus: true });
-  } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-    event.preventDefault();
-    const direction = event.key === "ArrowDown" ? 1 : -1;
-    options[(current + direction + options.length) % options.length].focus();
-  } else if (event.key === "Home" || event.key === "End") {
-    event.preventDefault();
-    options[event.key === "Home" ? 0 : options.length - 1].focus();
-  }
-});
-
 document.addEventListener("click", (event) => {
-  if (!nodes.sortControl.contains(event.target)) closeSortMenu();
+  customSelects.forEach((select) => {
+    if (!select.control.contains(event.target)) closeCustomSelect(select);
+  });
 });
 
 document.querySelector("#syncStatus").addEventListener("click", () => {
@@ -137,30 +103,98 @@ document.querySelector("#syncStatus").addEventListener("click", () => {
 
 window.setInterval(pollSyncStatus, 10000);
 
-function openSortMenu(focusDirection = 0) {
-  nodes.sortMenu.hidden = false;
-  nodes.sortTrigger.setAttribute("aria-expanded", "true");
-  nodes.sortControl.classList.add("is-open");
+function setupCustomSelect(control) {
+  const select = {
+    control,
+    input: control.querySelector('input[type="hidden"]'),
+    trigger: control.querySelector("[aria-haspopup='listbox']"),
+    menu: control.querySelector("[role='listbox']"),
+    value: control.querySelector(".custom-select-trigger > span:first-child"),
+  };
+  select.trigger.addEventListener("click", () => {
+    if (select.menu.hidden) openCustomSelect(select);
+    else closeCustomSelect(select);
+  });
+  select.trigger.addEventListener("keydown", (event) => {
+    if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return;
+    event.preventDefault();
+    openCustomSelect(select, event.key === "ArrowUp" ? -1 : 1);
+  });
+  select.menu.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-select-value]");
+    if (!option) return;
+    setCustomSelectValue(select.input, option.dataset.selectValue);
+    closeCustomSelect(select, { restoreFocus: true });
+  });
+  select.menu.addEventListener("keydown", (event) => {
+    const options = customSelectOptions(select);
+    const current = Math.max(options.indexOf(document.activeElement), 0);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeCustomSelect(select, { restoreFocus: true });
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      options[(current + direction + options.length) % options.length].focus();
+    } else if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      options[event.key === "Home" ? 0 : options.length - 1].focus();
+    }
+  });
+  control.addEventListener("focusout", (event) => {
+    if (!control.contains(event.relatedTarget)) closeCustomSelect(select);
+  });
+  return select;
+}
+
+function openCustomSelect(select, focusDirection = 0) {
+  customSelects.forEach((item) => {
+    if (item !== select) closeCustomSelect(item);
+  });
+  select.menu.hidden = false;
+  select.trigger.setAttribute("aria-expanded", "true");
+  select.control.classList.add("is-open");
   if (focusDirection === 0) return;
-  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
-  const selectedIndex = Math.max(options.findIndex((option) => option.dataset.sort === nodes.sort.value), 0);
-  const targetIndex = focusDirection < 0 ? options.length - 1 : selectedIndex;
-  options[targetIndex].focus();
+  const options = customSelectOptions(select);
+  const selectedIndex = Math.max(
+    options.findIndex((option) => option.dataset.selectValue === select.input.value),
+    0,
+  );
+  options[focusDirection < 0 ? options.length - 1 : selectedIndex].focus();
 }
 
-function closeSortMenu({ restoreFocus = false } = {}) {
-  nodes.sortMenu.hidden = true;
-  nodes.sortTrigger.setAttribute("aria-expanded", "false");
-  nodes.sortControl.classList.remove("is-open");
-  if (restoreFocus) nodes.sortTrigger.focus();
+function closeCustomSelect(select, { restoreFocus = false } = {}) {
+  select.menu.hidden = true;
+  select.trigger.setAttribute("aria-expanded", "false");
+  select.control.classList.remove("is-open");
+  if (restoreFocus) select.trigger.focus();
 }
 
-function selectSort(value) {
-  const options = [...nodes.sortMenu.querySelectorAll("[data-sort]")];
-  const selected = options.find((option) => option.dataset.sort === value) || options[0];
-  nodes.sort.value = selected.dataset.sort;
-  nodes.sortValue.textContent = selected.textContent;
+function setCustomSelectValue(input, value) {
+  const select = customSelects.find((item) => item.input === input);
+  if (!select) return;
+  const options = customSelectOptions(select);
+  const selected = options.find((option) => option.dataset.selectValue === value) || options[0];
+  if (!selected) return;
+  input.value = selected.dataset.selectValue;
+  select.value.textContent = selected.textContent;
   options.forEach((option) => option.setAttribute("aria-selected", String(option === selected)));
+}
+
+function setCustomSelectOptions(input, options, selectedValue) {
+  const select = customSelects.find((item) => item.input === input);
+  if (!select) return;
+  select.menu.innerHTML = options
+    .map(
+      (option) =>
+        `<button type="button" role="option" data-select-value="${escapeHtml(option.value)}" aria-selected="false">${escapeHtml(option.label)}</button>`,
+    )
+    .join("");
+  setCustomSelectValue(input, selectedValue);
+}
+
+function customSelectOptions(select) {
+  return [...select.menu.querySelectorAll("[data-select-value]")];
 }
 
 async function pollSyncStatus() {
@@ -291,17 +325,16 @@ function renderOperators() {
   setText("operatorCount", `${state.operators.length} человек`);
   const selected = state.filters.operatorExtension;
   const options = [
-    '<option value="">Все операторы</option>',
-    ...state.operators.map(
-      (operator) =>
-        `<option value="${escapeHtml(operator.operator_extension)}">${escapeHtml(operator.operator_name)} · ${escapeHtml(operator.operator_extension)}</option>`,
-    ),
+    { value: "", label: "Все операторы" },
+    ...state.operators.map((operator) => ({
+      value: operator.operator_extension,
+      label: `${operator.operator_name} · ${operator.operator_extension}`,
+    })),
   ];
   if (selected && !state.operators.some((operator) => operator.operator_extension === selected)) {
-    options.push(`<option value="${escapeHtml(selected)}">Выбранный оператор · ${escapeHtml(selected)}</option>`);
+    options.push({ value: selected, label: `Выбранный оператор · ${selected}` });
   }
-  nodes.operator.innerHTML = options.join("");
-  nodes.operator.value = selected;
+  setCustomSelectOptions(nodes.operator, options, selected);
   if (!state.operators.length) {
     nodes.operators.innerHTML = '<div class="empty">Нет данных за выбранный период.</div>';
     return;
@@ -312,13 +345,16 @@ function renderOperators() {
         <button class="operator" type="button" data-operator-extension="${escapeHtml(operator.operator_extension)}">
           <span class="operator-rank">${String(index + 1).padStart(2, "0")}</span>
           <span><strong>${escapeHtml(operator.operator_name)}</strong><small>Внутренний ${escapeHtml(operator.operator_extension)}</small></span>
-          <span class="operator-score">${operator.satisfied_percent}%</span>
+          <span class="operator-metrics">
+            <span class="operator-score" title="Индивидуальная доля позитивных звонков этого оператора"><strong>${operator.satisfied_percent}%</strong><small>позитив</small></span>
+            <span class="operator-score resolved" title="Доля обращений этого оператора с результатом «Да»"><strong>${operator.resolved_percent}%</strong><small>решено</small></span>
+          </span>
         </button>`,
     )
     .join("");
   nodes.operators.querySelectorAll("[data-operator-extension]").forEach((button) => {
     button.addEventListener("click", () => {
-      nodes.operator.value = button.dataset.operatorExtension;
+      setCustomSelectValue(nodes.operator, button.dataset.operatorExtension);
       readFilters();
       state.page = 1;
       refresh({ keepOperators: true });

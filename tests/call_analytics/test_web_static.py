@@ -68,23 +68,48 @@ def test_frontend_uses_server_filters_pagination_and_cancellable_requests() -> N
     assert "new WebSocket(" not in script
 
 
-def test_sort_control_uses_full_width_custom_dropdown_below_field() -> None:
+def test_filter_dropdowns_share_aligned_full_width_custom_control() -> None:
     html = _read("index.html")
     script = _read("assets/app.js")
     css = _read("assets/app.css")
 
-    assert 'id="sortSelect" type="hidden"' in html
-    assert 'id="sortTrigger"' in html
-    assert 'id="sortMenu" role="listbox"' in html
-    assert 'data-sort="asc"' in html
-    assert 'data-sort="desc"' in html
-    assert "openSortMenu" in script
-    assert "closeSortMenu" in script
-    assert "selectSort" in script
+    for name in ("operator", "satisfaction", "resolution", "sort"):
+        assert f'id="{name}Select" type="hidden"' in html
+        assert f'id="{name}Trigger"' in html
+        assert f'id="{name}Menu" role="listbox"' in html
+        assert f'<select id="{name}Select"' not in html
+    assert html.count("data-custom-select") == 4
+    assert "setupCustomSelect" in script
+    assert "openCustomSelect" in script
+    assert "closeCustomSelect" in script
+    assert "setCustomSelectValue" in script
+    assert "setCustomSelectOptions(nodes.operator" in script
+    assert "openSortMenu" not in script
     assert ".custom-select-trigger" in css
     assert ".custom-select-menu" in css
     assert "top: calc(100% + 0.35rem)" in css
-    assert "width: 100%" in css
+    assert "right: 0" in css
+    assert "width: auto" in css
+    assert "padding: 0 0.8rem 0 2rem" in css
+    assert "top: 50%" in css
+
+
+def test_operator_percent_is_explained_as_individual_positive_share() -> None:
+    html = _read("index.html")
+    script = _read("assets/app.js")
+
+    assert "Доля звонков с позитивной эмоцией клиента у каждого оператора" in html
+    assert "доля позитивных звонков" in script
+    assert "<small>позитив</small>" in script
+    assert "operator.resolved_percent" in script
+    assert "<small>решено</small>" in script
+    assert "нагрузка" not in html.lower()
+
+
+def test_partial_resolution_card_uses_white_text_on_amber() -> None:
+    css = _read("assets/app.css")
+
+    assert ".resolution-grid .partial {\n  color: white;\n  background: var(--amber);\n}" in css
 
 
 def test_styles_use_approved_tokens_fonts_and_breakpoints() -> None:

@@ -98,6 +98,7 @@ def build_client() -> TestClient:
             name="Оператор",
             total_calls=2,
             satisfied_percent=50,
+            resolved_percent=50,
             attention_calls=1,
         )
     ]
@@ -147,6 +148,7 @@ def test_dashboard_summary_and_operator_endpoints() -> None:
     }
     assert operators.json()[0]["operator_id"] == 14
     assert operators.json()[0]["operator_name"] == "Оператор"
+    assert operators.json()[0]["resolved_percent"] == 50
 
 
 def test_call_list_is_server_paginated_and_has_no_audio_fields() -> None:

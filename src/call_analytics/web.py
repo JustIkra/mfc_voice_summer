@@ -98,6 +98,7 @@ def create_app(
                 "operator_name": item.name,
                 "total_calls": item.total_calls,
                 "satisfied_percent": item.satisfied_percent,
+                "resolved_percent": item.resolved_percent,
                 "attention_calls": item.attention_calls,
             }
             for item in await dashboard().operators(filters)
