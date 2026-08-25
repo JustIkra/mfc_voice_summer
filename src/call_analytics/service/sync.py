@@ -182,8 +182,7 @@ class GrandstreamSyncService:
                     if not filenames:
                         raise InvalidRecordingError("recording file is absent")
                     parts = [
-                        await self._gateway.download_recording(filename)
-                        for filename in filenames
+                        await self._gateway.download_recording(filename) for filename in filenames
                     ]
                     await self._workspace.prepare(recording.id, parts)
                     await self._archive.store(
