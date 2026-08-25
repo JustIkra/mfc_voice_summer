@@ -148,6 +148,17 @@ def create_app(
             raise HTTPException(status_code=404, detail="report not found")
         return payload
 
+    @app.get("/api/calls/{call_id}/audio")
+    async def get_call_audio(call_id: str) -> FileResponse:
+        archived = await dashboard().audio_file(RecordingId(call_id))
+        if archived is None:
+            raise HTTPException(status_code=404, detail="audio not found")
+        return FileResponse(
+            archived.path,
+            media_type=archived.mime_type,
+            headers={"Content-Disposition": 'inline; filename="call-recording.ogg"'},
+        )
+
     @app.get("/api/calls/{call_id}/report.pdf")
     async def get_report_pdf(call_id: str) -> Response:
         payload = await dashboard().report(RecordingId(call_id))
@@ -163,12 +174,14 @@ def create_app(
     @app.get("/api/sync/status")
     async def sync_status() -> dict[str, object]:
         processing = dict(await dashboard().processing_counts())
+        storage = asdict(await dashboard().storage_status())
         status = await dashboard().sync_status()
         if status is None:
-            return {"status": "never", "processing": processing}
+            return {"status": "never", "processing": processing, "storage": storage}
         return {
             **asdict(status),
             "processing": processing,
+            "storage": storage,
             "window_start": status.window_start.isoformat(),
             "window_end": status.window_end.isoformat(),
             "started_at": status.started_at.isoformat(),

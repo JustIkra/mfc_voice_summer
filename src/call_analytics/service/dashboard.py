@@ -4,10 +4,16 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 from domain import RecordingId
 
 if TYPE_CHECKING:
+    from call_analytics.service.ports.archive import (
+        ArchivedRecordingFile,
+        RecordingArchive,
+        RecordingStorageStatus,
+    )
     from call_analytics.service.ports.persistence import (
         DashboardRepository,
         FinalReportRepository,
@@ -101,10 +107,12 @@ class DashboardService:
         dashboard: DashboardRepository,
         reports: FinalReportRepository,
         sync_runs: SyncRunRepository,
+        archive: RecordingArchive,
     ) -> None:
         self._dashboard = dashboard
         self._reports = reports
         self._sync_runs = sync_runs
+        self._archive = archive
 
     async def summary(self, filters: DashboardFilter) -> DashboardSummary:
         return await self._dashboard.summary(filters)
@@ -116,13 +124,35 @@ class DashboardService:
         return await self._dashboard.list_calls(request)
 
     async def report(self, recording_id: RecordingId) -> dict[str, object] | None:
-        return await self._reports.load_payload(recording_id)
+        stored = await self._reports.load_payload(recording_id)
+        if stored is None:
+            return None
+        payload = dict(stored)
+        located = await self._archive.locate(recording_id)
+        payload["audio"] = (
+            {
+                "available": True,
+                "url": f"/api/calls/{quote(recording_id.value, safe='')}/audio",
+                "mime_type": located.mime_type,
+            }
+            if located is not None
+            else {"available": False}
+        )
+        return payload
+
+    async def audio_file(self, recording_id: RecordingId) -> ArchivedRecordingFile | None:
+        if await self._reports.load_payload(recording_id) is None:
+            return None
+        return await self._archive.locate(recording_id)
 
     async def processing_counts(self) -> Mapping[str, int]:
         return await self._dashboard.processing_counts()
 
     async def sync_status(self) -> SyncStatus | None:
         return await self._sync_runs.last()
+
+    async def storage_status(self) -> RecordingStorageStatus:
+        return await self._archive.storage_status()
 
 
 __all__ = [

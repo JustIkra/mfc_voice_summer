@@ -259,6 +259,7 @@ def build_application(settings: AppSettings | None = None) -> Application:
         dashboard=dashboard_repository,
         reports=final_reports,
         sync_runs=sync_runs,
+        archive=recording_archive,
     )
     return Application(
         settings=settings,

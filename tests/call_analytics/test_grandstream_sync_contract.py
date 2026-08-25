@@ -6,7 +6,6 @@ from call_analytics.web import create_app
 def test_public_openapi_has_no_recording_or_job_mutations() -> None:
     paths = create_app().openapi()["paths"]
 
-    assert all("audio" not in path for path in paths)
     assert "/api/recordings" not in paths
     assert "/api/recordings/{recording_id}/jobs" not in paths
     assert "/api/jobs/{job_id}/retry" not in paths
@@ -14,6 +13,7 @@ def test_public_openapi_has_no_recording_or_job_mutations() -> None:
     assert set(paths) == {
         "/",
         "/api/calls",
+        "/api/calls/{call_id}/audio",
         "/api/calls/{call_id}/report",
         "/api/calls/{call_id}/report.pdf",
         "/api/dashboard/summary",

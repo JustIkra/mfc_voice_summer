@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
@@ -14,13 +16,20 @@ from call_analytics.service.dashboard import (
     DashboardSummary,
     OperatorSummary,
 )
-from call_analytics.service.ports import FinalReportRepository
+from call_analytics.service.ports import (
+    ArchivedRecording,
+    ArchivedRecordingFile,
+    FinalReportRepository,
+    RecordingArchive,
+    RecordingStorageStatus,
+)
 from call_analytics.web import create_app
 from domain import CallProcessingJob, FinalReportDocument, RecordingId
 
 MSK = timezone(timedelta(hours=3))
 NOW = datetime(2026, 8, 22, 12, 0, tzinfo=MSK)
 CALL_ID = "cdr:group-001"
+OGG_BYTES = b"OggS0123456789"
 REPORT_PAYLOAD: dict[str, object] = {
     "schema_version": 1,
     "call": {
@@ -82,7 +91,23 @@ class FakeFinalReportRepository(FinalReportRepository):
         return REPORT_PAYLOAD if recording_id.value == CALL_ID else None
 
 
-def build_client() -> TestClient:
+class FakeRecordingArchive(RecordingArchive):
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = path
+
+    async def store(self, recording_id, audio) -> ArchivedRecording:
+        raise AssertionError("store is not used by web tests")
+
+    async def locate(self, recording_id: RecordingId) -> ArchivedRecordingFile | None:
+        if recording_id.value != CALL_ID or self.path is None:
+            return None
+        return ArchivedRecordingFile(self.path, "audio/ogg", self.path.stat().st_size)
+
+    async def storage_status(self) -> RecordingStorageStatus:
+        return RecordingStorageStatus.from_usage(100, 10, 90, reserve_bytes=2)
+
+
+def build_client(archive: RecordingArchive | None = None) -> TestClient:
     summary = DashboardSummary(
         total_calls=2,
         resolved_calls=1,
@@ -127,6 +152,7 @@ def build_client() -> TestClient:
         ),
         reports=FakeFinalReportRepository(),
         sync_runs=InMemorySyncRunRepository(),
+        archive=archive or FakeRecordingArchive(),
     )
     return TestClient(create_app(lambda: service, clock=lambda: NOW))
 
@@ -182,10 +208,33 @@ def test_report_and_pdf_are_loaded_from_canonical_payload() -> None:
     assert pdf.content.startswith(b"%PDF")
 
 
+def test_report_exposes_audio_and_range_endpoint(tmp_path: Path) -> None:
+    audio_path = tmp_path / "call.ogg"
+    audio_path.write_bytes(OGG_BYTES)
+    client = build_client(FakeRecordingArchive(audio_path))
+
+    report = client.get(f"/api/calls/{CALL_ID}/report")
+    audio = client.get(
+        f"/api/calls/{CALL_ID}/audio",
+        headers={"Range": "bytes=0-3"},
+    )
+
+    assert report.json()["audio"] == {
+        "available": True,
+        "url": f"/api/calls/{quote(CALL_ID, safe='')}/audio",
+        "mime_type": "audio/ogg",
+    }
+    assert audio.status_code == 206
+    assert audio.headers["content-type"].startswith("audio/ogg")
+    assert audio.headers["accept-ranges"] == "bytes"
+    assert audio.content == OGG_BYTES[:4]
+
+
 def test_missing_report_and_invalid_filters_are_explicit() -> None:
     client = build_client()
 
     assert client.get("/api/calls/missing/report").status_code == 404
+    assert client.get("/api/calls/missing/audio").status_code == 404
     assert (
         client.get(
             "/api/calls",
@@ -215,4 +264,11 @@ def test_sync_status_reports_never_before_first_run() -> None:
     assert response.json() == {
         "status": "never",
         "processing": {"pending": 3, "running": 1, "done": 2, "failed": 1},
+        "storage": {
+            "total_bytes": 100,
+            "used_bytes": 10,
+            "free_bytes": 90,
+            "used_percent": 10,
+            "state": "ok",
+        },
     }
