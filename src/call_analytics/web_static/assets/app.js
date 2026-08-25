@@ -396,14 +396,16 @@ function renderPagination() {
 function renderSync(sync) {
   const button = document.querySelector("#syncStatus");
   const processing = sync.processing || {};
+  const storage = sync.storage || {};
   const pending = Number(processing.pending || 0);
   const running = Number(processing.running || 0);
   const active = pending + running;
   const processingText = `Готово: ${processing.done || 0}; ожидают: ${pending}; обрабатываются: ${running}; ошибок: ${processing.failed || 0}`;
+  const storageText = renderStorageStatus(storage);
   if (sync.status === "never") {
     button.textContent = active ? `Очередь: ${active}` : "Синхронизация не запускалась";
-    button.title = processingText;
-    button.classList.remove("failed");
+    button.title = `${processingText}. ${storageText}`;
+    button.classList.toggle("failed", ["critical", "full"].includes(storage.state));
     return;
   }
   const stamp = sync.finished_at || sync.started_at;
@@ -417,8 +419,20 @@ function renderSync(sync) {
     button.textContent = `Обновлено ${formatDateTime(stamp)}`;
   }
   const runText = `Последний запуск: найдено ${sync.discovered}; загружено ${sync.queued}; пропущено ${sync.skipped}; ошибок ${sync.failed}`;
-  button.title = `${processingText}. ${runText}`;
-  button.classList.toggle("failed", sync.status === "failed");
+  button.title = `${processingText}. ${runText}. ${storageText}`;
+  button.classList.toggle(
+    "failed",
+    sync.status === "failed" || ["critical", "full"].includes(storage.state),
+  );
+}
+
+function renderStorageStatus(storage = {}) {
+  const free = formatGiB(storage.free_bytes);
+  const total = formatGiB(storage.total_bytes);
+  if (storage.state === "full") return `Архив записей заполнен: свободно ${free} из ${total}`;
+  if (storage.state === "critical") return `Критически мало места в архиве: ${free} из ${total}`;
+  if (storage.state === "warning") return `Мало места в архиве записей: ${free} из ${total}`;
+  return `Архив записей: свободно ${free} из ${total}`;
 }
 
 async function openReport(callId) {
@@ -445,6 +459,7 @@ function renderReport(report) {
   const transcript = report.transcript?.segments || [];
   document.querySelector("#reportTitle").textContent = `Звонок ${call.id || ""}`;
   nodes.reportContent.innerHTML = `
+    ${renderAudioPlayer(report.audio)}
     <section class="report-meta">
       ${meta("Оператор", `${operator.name || "—"} · ID ${operator.id || "—"} · ${operator.extension || "—"}`)}
       ${meta("Звонящий", `${caller.name || "Имя не определено"} · ${caller.id || "Caller ID отсутствует"}`)}
@@ -467,6 +482,13 @@ function renderReport(report) {
       </div>
     </section>
     <section class="report-section"><h3>Расшифровка</h3><div class="transcript">${transcript.map(renderTranscript).join("") || '<div class="empty">Расшифровка отсутствует.</div>'}</div></section>`;
+}
+
+function renderAudioPlayer(audio = {}) {
+  if (!audio.available) {
+    return '<section class="recording-player unavailable"><div><h3>Запись разговора</h3><p>Запись готовится. Она появится после архивирования.</p></div></section>';
+  }
+  return `<section class="recording-player"><div><h3>Запись разговора</h3><p>Архивная запись звонка</p></div><audio controls preload="metadata" controlsList="nodownload" src="${escapeHtml(audio.url)}"></audio></section>`;
 }
 
 function renderTranscript(segment) {
@@ -496,6 +518,7 @@ function outcome(label, value, className) {
 }
 
 function closeReport() {
+  nodes.reportContent.querySelector("audio")?.pause();
   nodes.dialog.close();
   state.selectedCallId = null;
 }
@@ -536,6 +559,10 @@ function percent(value, total) {
 function formatDuration(seconds) {
   const total = Math.max(0, Math.round(Number(seconds) || 0));
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function formatGiB(bytes) {
+  return `${(Math.max(0, Number(bytes) || 0) / 1024 ** 3).toFixed(1)} ГБ`;
 }
 
 function formatDate(value) {

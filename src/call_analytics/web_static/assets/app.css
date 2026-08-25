@@ -922,6 +922,45 @@ dialog::backdrop {
   padding: 1.4rem;
 }
 
+.recording-player {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.45fr) minmax(18rem, 1fr);
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  border: 1px solid var(--line);
+  border-left: 0.24rem solid var(--teal);
+  border-radius: 0.8rem;
+  padding: 1rem;
+  background: var(--teal-soft);
+}
+
+.recording-player h3,
+.recording-player p {
+  margin-bottom: 0;
+}
+
+.recording-player h3 {
+  font-size: 1rem;
+}
+
+.recording-player p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.recording-player audio {
+  width: 100%;
+  accent-color: var(--teal);
+}
+
+.recording-player.unavailable {
+  grid-template-columns: 1fr;
+  border-left-color: var(--amber);
+  background: white;
+}
+
 .icon-button {
   width: 2.5rem;
   aspect-ratio: 1;
@@ -1152,6 +1191,7 @@ dialog::backdrop {
 
   .filters,
   .metrics,
+  .recording-player,
   .report-meta,
   .outcome-grid,
   .emotion-grid {

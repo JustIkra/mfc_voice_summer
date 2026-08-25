@@ -114,6 +114,33 @@ def test_partial_resolution_card_uses_white_text_on_amber() -> None:
     assert ".resolution-grid .partial {\n  color: white;\n  background: var(--amber);\n}" in css
 
 
+def test_audio_player_exists_only_in_report_renderer() -> None:
+    html = _read("index.html")
+    script = _read("assets/app.js")
+    css = _read("assets/app.css")
+    journal_renderer = script[
+        script.index("function renderCalls") : script.index("function renderPagination")
+    ]
+
+    assert "renderAudioPlayer" in script
+    assert '<audio controls preload="metadata"' in script
+    assert "Запись разговора" in script
+    assert "Запись готовится" in script
+    assert "<audio" not in html.lower()
+    assert "<audio" not in journal_renderer
+    assert '.querySelector("audio")?.pause()' in script
+    assert ".recording-player" in css
+    assert ".recording-player audio" in css
+
+
+def test_sync_tooltip_describes_recording_storage() -> None:
+    script = _read("assets/app.js")
+
+    assert "Архив записей" in script
+    assert "storage.free_bytes" in script
+    assert "Критически мало места" in script
+
+
 def test_styles_use_approved_tokens_fonts_and_breakpoints() -> None:
     css = _read("assets/app.css").lower()
 
