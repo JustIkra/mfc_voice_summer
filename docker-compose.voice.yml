@@ -18,24 +18,13 @@ services:
     env_file:
       - .env
     environment:
-      VOICE_RECORDINGS_DIR: /data/recordings
-      VOICE_UPLOADS_DIR: /data/uploads
-      VOICE_ARTIFACTS_DIR: /data/reports
-      VOICE_STAGING_DIR: /data/staging
-      VOICE_ASR_URL: http://asr-api:8100
-      VOICE_DIARIZATION_URL: http://diarization-api:8100
-      VOICE_EMOTION_URL: http://emotion-api:8100
-      VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
-      VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
-      VOICE_CONTAINER_RECORDINGS_DIR: /data/recordings
-      VOICE_CONTAINER_STAGING_DIR: /data/staging
-      VOICE_QWEN_BASE_URL: ${VOICE_QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
-      VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
+      VOICE_DB_PATH: /data/db/call-analytics.sqlite3
+      VOICE_ARCHIVE_DIR: /data/recordings
+      VOICE_ARCHIVE_BITRATE: ${VOICE_ARCHIVE_BITRATE:-24k}
+      VOICE_ARCHIVE_RESERVE_BYTES: ${VOICE_ARCHIVE_RESERVE_BYTES:-2147483648}
     volumes:
-      - ./.recordings:/data/recordings
-      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads
-      - ./.reports:/data/reports
-      - ./.staging:/data/staging
+      - ./.data:/data/db
+      - /var/recordings-voice-summer:/data/recordings:ro
     expose:
       - "8000"
     extra_hosts:
@@ -60,24 +49,23 @@ services:
     env_file:
       - .env
     environment:
-      VOICE_RECORDINGS_DIR: /data/recordings
-      VOICE_UPLOADS_DIR: /data/uploads
-      VOICE_ARTIFACTS_DIR: /data/reports
+      VOICE_DB_PATH: /data/db/call-analytics.sqlite3
       VOICE_STAGING_DIR: /data/staging
       VOICE_ASR_URL: http://asr-api:8100
       VOICE_DIARIZATION_URL: http://diarization-api:8100
       VOICE_EMOTION_URL: http://emotion-api:8100
       VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
       VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
-      VOICE_CONTAINER_RECORDINGS_DIR: /data/recordings
       VOICE_CONTAINER_STAGING_DIR: /data/staging
       VOICE_QWEN_BASE_URL: ${VOICE_QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
       VOICE_QWEN_MODEL: ${VOICE_QWEN_MODEL:-qwen3.6-35b}
       VOICE_WORKER_IDLE_SLEEP_SECONDS: ${VOICE_WORKER_IDLE_SLEEP_SECONDS:-1}
+      VOICE_WORKER_WATCHDOG_INTERVAL_SECONDS: ${VOICE_WORKER_WATCHDOG_INTERVAL_SECONDS:-60}
+      VOICE_WORKER_STALE_AFTER_SECONDS: ${VOICE_WORKER_STALE_AFTER_SECONDS:-1800}
+      VOICE_WORKER_STALE_MAX_ATTEMPTS: ${VOICE_WORKER_STALE_MAX_ATTEMPTS:-8}
+      VOICE_WORKER_PROCESSING_TIMEOUT_SECONDS: ${VOICE_WORKER_PROCESSING_TIMEOUT_SECONDS:-1800}
     volumes:
-      - ./.recordings:/data/recordings
-      - ${VOICE_UPLOADS_HOST_DIR:-./.uploads}:/data/uploads:ro
-      - ./.reports:/data/reports
+      - ./.data:/data/db
       - ./.staging:/data/staging
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -89,6 +77,44 @@ services:
       diarization-api:
         condition: service_healthy
       emotion-api:
+        condition: service_healthy
+
+  grandstream-sync:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: mfc-voice-web:latest
+    restart: unless-stopped
+    command: python -m call_analytics.sync_app
+    env_file:
+      - .env
+    environment:
+      VOICE_DB_PATH: /data/db/call-analytics.sqlite3
+      VOICE_STAGING_DIR: /data/staging
+      VOICE_CONTAINER_STAGING_DIR: /data/staging
+      VOICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq/
+      VOICE_RABBITMQ_QUEUE: ${VOICE_RABBITMQ_QUEUE:-voice.recordings}
+      VOICE_GRANDSTREAM_URL: ${VOICE_GRANDSTREAM_URL:-https://grandstream253.mfcl.mfclnr.ru/api}
+      VOICE_GRANDSTREAM_USER: ${VOICE_GRANDSTREAM_USER:-ranhigs}
+      VOICE_GRANDSTREAM_PASSWORD: ${VOICE_GRANDSTREAM_PASSWORD:-}
+      VOICE_GRANDSTREAM_QUEUE: ${VOICE_GRANDSTREAM_QUEUE:-6500}
+      VOICE_GRANDSTREAM_QUEUE_NAME: ${VOICE_GRANDSTREAM_QUEUE_NAME:-Call_center}
+      VOICE_GRANDSTREAM_CA_FILE: /usr/local/share/ca-certificates/mfcRootCA.crt
+      VOICE_GRANDSTREAM_API_TIMEOUT_SECONDS: ${VOICE_GRANDSTREAM_API_TIMEOUT_SECONDS:-120}
+      VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS: ${VOICE_GRANDSTREAM_DOWNLOAD_TIMEOUT_SECONDS:-900}
+      VOICE_SYNC_TIME: ${VOICE_SYNC_TIME:-02:00}
+      VOICE_SYNC_BATCH_LIMIT: ${VOICE_SYNC_BATCH_LIMIT:-3000}
+      VOICE_SYNC_ENABLED: ${VOICE_SYNC_ENABLED:-no}
+      VOICE_SYNC_RUN_ON_START: ${VOICE_SYNC_RUN_ON_START:-no}
+      VOICE_ARCHIVE_DIR: /data/recordings
+      VOICE_ARCHIVE_BITRATE: ${VOICE_ARCHIVE_BITRATE:-24k}
+      VOICE_ARCHIVE_RESERVE_BYTES: ${VOICE_ARCHIVE_RESERVE_BYTES:-2147483648}
+    volumes:
+      - ./.data:/data/db
+      - ./.staging:/data/staging
+      - /var/recordings-voice-summer:/data/recordings
+    depends_on:
+      rabbitmq:
         condition: service_healthy
 
   qwen-api:
@@ -171,7 +197,6 @@ services:
       HF_HUB_ENABLE_HF_TRANSFER: "0"
       HF_HUB_DISABLE_XET: "1"
     volumes:
-      - ./.recordings:/data/recordings:ro
       - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:
@@ -206,7 +231,6 @@ services:
       HF_HUB_ENABLE_HF_TRANSFER: "0"
       HF_HUB_DISABLE_XET: "1"
     volumes:
-      - ./.recordings:/data/recordings:ro
       - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:
@@ -241,7 +265,6 @@ services:
       HF_HUB_ENABLE_HF_TRANSFER: "0"
       HF_HUB_DISABLE_XET: "1"
     volumes:
-      - ./.recordings:/data/recordings:ro
       - ./.staging:/data/staging:ro
       - ./model-cache:/models
     expose:

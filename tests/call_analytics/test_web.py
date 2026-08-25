@@ -1,250 +1,274 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
 from call_analytics.infra.adapters.in_memory import (
-    InMemoryArtifactStore,
-    InMemoryJobRepository,
-    InMemoryRecordingSource,
+    InMemoryDashboardRepository,
+    InMemorySyncRunRepository,
 )
-from call_analytics.infra.adapters.noop import (
-    NoopDiarizer,
-    NoopEmotionRecognizer,
-    NoopReportGenerator,
-    NoopTranscriber,
+from call_analytics.service import DashboardService
+from call_analytics.service.dashboard import (
+    CallListItem,
+    DashboardSummary,
+    OperatorSummary,
 )
-from call_analytics.service import CallProcessingService
-from call_analytics.service.ports import ProcessingMessage, ProcessingQueue
-from call_analytics.service.ports.application import RecordingInbox
-from call_analytics.service.workspace import PipelineWorkspace
+from call_analytics.service.ports import (
+    ArchivedRecording,
+    ArchivedRecordingFile,
+    FinalReportRepository,
+    RecordingArchive,
+    RecordingStorageStatus,
+)
 from call_analytics.web import create_app
-from domain import (
-    AudioBlob,
-    CallRecording,
-    CallReport,
-    ChannelLayout,
-    Period,
-    RecordingId,
-    Satisfaction,
-)
+from domain import CallProcessingJob, FinalReportDocument, RecordingId
 
 MSK = timezone(timedelta(hours=3))
+NOW = datetime(2026, 8, 22, 12, 0, tzinfo=MSK)
+CALL_ID = "cdr:group-001"
+OGG_BYTES = b"OggS0123456789"
+REPORT_PAYLOAD: dict[str, object] = {
+    "schema_version": 1,
+    "call": {
+        "id": CALL_ID,
+        "acct_id": "901",
+        "recording_filenames": ["2026-08/call.wav"],
+        "started_at": NOW.isoformat(),
+        "duration_seconds": 180.0,
+        "queue": {"extension": "6500", "name": "Call_center"},
+    },
+    "caller": {
+        "id": "79000000001",
+        "name": "Анна",
+        "name_source": "transcript",
+        "name_confidence": 0.92,
+    },
+    "operator": {"id": 14, "extension": "11198", "name": "Оператор"},
+    "analysis": {
+        "satisfaction": "satisfied",
+        "question_resolved": {"value": "yes", "confidence": 0.9, "evidence": []},
+        "client_satisfaction": {
+            "value": "satisfied",
+            "score_1_5": 5,
+            "confidence": 0.9,
+            "evidence": [],
+        },
+        "summary": "Вопрос решён.",
+        "key_points": ["Назван срок"],
+        "emotional_assessment": {
+            "overall": "Спокойный разговор",
+            "client_emotions": [],
+            "operator_emotions": [],
+            "evidence": [],
+        },
+        "risks": [],
+        "recommendations": [],
+    },
+    "transcript": {
+        "language": "ru",
+        "segments": [
+            {
+                "start_seconds": 0.0,
+                "end_seconds": 2.0,
+                "speaker": "operator",
+                "text": "Добрый день",
+                "confidence": 0.96,
+            }
+        ],
+    },
+    "generated_at": NOW.isoformat(),
+}
 
 
-class MemoryQueue(ProcessingQueue):
-    def __init__(self) -> None:
-        self.published: list[RecordingId] = []
+class FakeFinalReportRepository(FinalReportRepository):
+    async def finalize(self, job: CallProcessingJob, document: FinalReportDocument) -> None:
+        raise AssertionError("finalize is not used by web tests")
 
-    async def publish(self, recording_id: RecordingId) -> None:
-        self.published.append(recording_id)
-
-    async def get(self) -> ProcessingMessage | None:
-        return None
-
-    async def ack(self, message: ProcessingMessage) -> None:
-        raise AssertionError("ack is not used by web tests")
-
-    async def reject(self, message: ProcessingMessage, requeue: bool) -> None:
-        raise AssertionError("reject is not used by web tests")
+    async def load_payload(self, recording_id: RecordingId) -> dict[str, object] | None:
+        return REPORT_PAYLOAD if recording_id.value == CALL_ID else None
 
 
-class PeriodAwareRecordingSource(InMemoryRecordingSource):
-    async def list_recordings(self, period: Period) -> Sequence[CallRecording]:
-        return [
-            recording
-            for recording in await super().list_recordings(period)
-            if period.start <= recording.started_at <= period.end
-        ]
+class FakeRecordingArchive(RecordingArchive):
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = path
+
+    async def store(self, recording_id, audio) -> ArchivedRecording:
+        raise AssertionError("store is not used by web tests")
+
+    async def locate(self, recording_id: RecordingId) -> ArchivedRecordingFile | None:
+        if recording_id.value != CALL_ID or self.path is None:
+            return None
+        return ArchivedRecordingFile(self.path, "audio/ogg", self.path.stat().st_size)
+
+    async def storage_status(self) -> RecordingStorageStatus:
+        return RecordingStorageStatus.from_usage(100, 10, 90, reserve_bytes=2)
 
 
-class MemoryInbox(RecordingInbox):
-    def __init__(self, source: InMemoryRecordingSource, now: datetime) -> None:
-        self._source = source
-        self._now = now
-
-    async def save_wav(self, filename: str, content: bytes) -> CallRecording:
-        recording = CallRecording(
-            id=RecordingId(filename.removesuffix(".wav")),
-            started_at=self._now,
-            duration=timedelta(seconds=7),
-            channel_layout=ChannelLayout.MONO,
-            metadata={"filename": filename},
+def build_client(archive: RecordingArchive | None = None) -> TestClient:
+    summary = DashboardSummary(
+        total_calls=2,
+        resolved_calls=1,
+        average_duration_seconds=180.0,
+        attention_calls=1,
+        satisfaction={"satisfied": 1, "neutral": 0, "dissatisfied": 1},
+        resolution={"yes": 1, "partial": 0, "no": 1, "unknown": 0},
+    )
+    operators = [
+        OperatorSummary(
+            id=14,
+            extension="11198",
+            name="Оператор",
+            total_calls=2,
+            satisfied_percent=50,
+            resolved_percent=50,
+            attention_calls=1,
         )
-        self._source.add(recording, AudioBlob(data=content, codec="wav", layout=ChannelLayout.MONO))
-        return recording
-
-
-def build_client() -> tuple[TestClient, MemoryQueue, InMemoryArtifactStore]:
-    now = datetime(2026, 6, 25, 8, 30, tzinfo=MSK)
-    recording_id = RecordingId("call-001")
-    recording = CallRecording(
-        id=recording_id,
-        started_at=now,
-        duration=timedelta(seconds=91),
-        channel_layout=ChannelLayout.STEREO,
-        metadata={"filename": "call-001.wav"},
-    )
-    source = PeriodAwareRecordingSource()
-    source.add(recording, AudioBlob(data=b"demo", codec="wav", layout=ChannelLayout.STEREO))
-    artifacts = InMemoryArtifactStore()
-    jobs = InMemoryJobRepository()
-    queue = MemoryQueue()
-    inbox = MemoryInbox(source, now)
-    pipeline = CallProcessingService(
-        source=source,
-        transcriber=NoopTranscriber(recording_id),
-        diarizer=NoopDiarizer(),
-        emotion_recognizer=NoopEmotionRecognizer(),
-        report_generator=NoopReportGenerator(generated_at=now),
-        jobs=jobs,
-        artifacts=artifacts,
-        clock=lambda: now,
-    )
-    workspace = PipelineWorkspace(
-        source=source,
-        jobs=jobs,
-        artifacts=artifacts,
-        queue=queue,
-        pipeline=pipeline,
-        inbox=inbox,
-        clock=lambda: now,
-    )
-    return TestClient(create_app(lambda: workspace)), queue, artifacts
-
-
-def test_recordings_endpoint_lists_available_recordings() -> None:
-    client, _, _ = build_client()
-
-    response = client.get("/api/recordings")
-
-    assert response.status_code == 200
-    assert response.json() == [
-        {
-            "id": "call-001",
-            "filename": "call-001.wav",
-            "started_at": "2026-06-25T08:30:00+03:00",
-            "duration_seconds": 91.0,
-            "channel_layout": "STEREO",
-            "job": None,
-        }
     ]
-
-
-def test_upload_endpoint_saves_wav_and_returns_recording() -> None:
-    client, queue, _ = build_client()
-
-    response = client.post(
-        "/api/recordings",
-        files={"file": ("uploaded.wav", b"RIFFdemo", "audio/wav")},
-    )
-
-    assert response.status_code == 201
-    assert response.json()["id"] == "uploaded"
-    assert response.json()["filename"] == "uploaded.wav"
-    assert response.json()["job"]["status"] == "pending"
-    assert [item.value for item in queue.published] == ["uploaded"]
-
-
-def test_enqueue_endpoint_creates_job_and_publishes_message() -> None:
-    client, queue, _ = build_client()
-
-    response = client.post("/api/recordings/call-001/jobs")
-
-    assert response.status_code == 201
-    assert response.json()["id"] == "call-001"
-    assert response.json()["status"] == "pending"
-    assert [item.value for item in queue.published] == ["call-001"]
-
-
-def test_process_endpoint_is_not_exposed_from_web_api() -> None:
-    client, _, _ = build_client()
-    client.post("/api/recordings/call-001/jobs")
-
-    response = client.post("/api/jobs/call-001/process")
-
-    assert response.status_code == 404
-
-
-def test_job_events_websocket_streams_current_status() -> None:
-    client, _, _ = build_client()
-    client.post("/api/recordings/call-001/jobs")
-
-    with client.websocket_connect("/api/jobs/call-001/events") as websocket:
-        message = websocket.receive_json()
-
-    assert message["id"] == "call-001"
-    assert message["status"] == "pending"
-    assert message["completed_stages"] == []
-
-
-def test_report_pdf_endpoint_returns_saved_artifact() -> None:
-    client, _, artifacts = build_client()
-    client.post("/api/recordings/call-001/jobs")
-    client.post("/api/jobs/call-001/process")
-    asyncio.run(artifacts.save_report_pdf(RecordingId("call-001"), b"%PDF-1.4 demo"))
-
-    response = client.get("/api/jobs/call-001/report.pdf")
-
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "application/pdf"
-    assert response.content == b"%PDF-1.4 demo"
-
-
-def test_delete_recording_report_endpoint_clears_report_state() -> None:
-    client, _, artifacts = build_client()
-    asyncio.run(
-        artifacts.save_report(
-            CallReport(
-                recording_id=RecordingId("call-001"),
-                satisfaction=Satisfaction.NEUTRAL,
-                summary="summary",
-                key_points=(),
-                generated_at=datetime(2026, 6, 25, 8, 30, tzinfo=MSK),
-            )
+    calls = [
+        CallListItem(
+            call_id=CALL_ID,
+            recording_filenames=("2026-08/call.wav",),
+            started_at=NOW,
+            duration_seconds=180.0,
+            caller_id="79000000001",
+            caller_name="Анна",
+            operator_id=14,
+            operator_extension="11198",
+            operator_name="Оператор",
+            summary="Вопрос решён.",
+            satisfaction="satisfied",
+            question_resolved="yes",
         )
+    ]
+    service = DashboardService(
+        dashboard=InMemoryDashboardRepository(
+            summary,
+            operators,
+            calls,
+            processing={"pending": 3, "running": 1, "done": 2, "failed": 1},
+        ),
+        reports=FakeFinalReportRepository(),
+        sync_runs=InMemorySyncRunRepository(),
+        archive=archive or FakeRecordingArchive(),
     )
-    asyncio.run(artifacts.save_report_pdf(RecordingId("call-001"), b"%PDF-1.4 demo"))
+    return TestClient(create_app(lambda: service, clock=lambda: NOW))
 
-    response = client.delete("/api/recordings/call-001/report")
+
+def test_dashboard_summary_and_operator_endpoints() -> None:
+    client = build_client()
+
+    summary = client.get("/api/dashboard/summary")
+    operators = client.get("/api/operators")
+
+    assert summary.status_code == 200
+    assert summary.json() == {
+        "total_calls": 2,
+        "resolved_calls": 1,
+        "average_duration_seconds": 180.0,
+        "attention_calls": 1,
+        "satisfaction": {"satisfied": 1, "neutral": 0, "dissatisfied": 1},
+        "resolution": {"yes": 1, "partial": 0, "no": 1, "unknown": 0},
+    }
+    assert operators.json()[0]["operator_id"] == 14
+    assert operators.json()[0]["operator_name"] == "Оператор"
+    assert operators.json()[0]["resolved_percent"] == 50
+
+
+def test_call_list_is_server_paginated_and_has_no_audio_fields() -> None:
+    response = build_client().get(
+        "/api/calls",
+        params={
+            "page": 1,
+            "page_size": 50,
+            "operator_extension": "11198",
+            "sort": "asc",
+        },
+    )
 
     assert response.status_code == 200
-    assert response.json()["job"] is None
-    assert client.get("/api/jobs/call-001/report").status_code == 404
-    assert client.get("/api/jobs/call-001/report.pdf").status_code == 404
+    assert response.json()["page_size"] == 50
+    assert response.json()["total_items"] == 1
+    assert response.json()["items"][0]["call_id"] == CALL_ID
+    assert "audio" not in response.text.lower()
 
 
-def test_overwrite_recording_report_endpoint_requeues_recording() -> None:
-    client, queue, _ = build_client()
+def test_report_and_pdf_are_loaded_from_canonical_payload() -> None:
+    client = build_client()
 
-    response = client.post("/api/recordings/call-001/overwrite")
+    report = client.get(f"/api/calls/{CALL_ID}/report")
+    pdf = client.get(f"/api/calls/{CALL_ID}/report.pdf")
 
-    assert response.status_code == 201
-    assert response.json()["status"] == "pending"
-    assert [item.value for item in queue.published] == ["call-001"]
-
-
-def test_pending_job_can_be_requeued_and_canceled() -> None:
-    client, queue, _ = build_client()
-    client.post("/api/recordings/call-001/jobs")
-
-    requeued = client.post("/api/jobs/call-001/requeue")
-    canceled = client.post("/api/jobs/call-001/cancel")
-
-    assert requeued.status_code == 200
-    assert requeued.json()["status"] == "pending"
-    assert canceled.status_code == 200
-    assert canceled.json()["status"] == "canceled"
-    assert [item.value for item in queue.published] == ["call-001", "call-001"]
+    assert report.status_code == 200
+    assert report.json()["transcript"]["segments"][0]["text"] == "Добрый день"
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"] == "application/pdf"
+    assert pdf.content.startswith(b"%PDF")
 
 
-def test_queue_actions_return_conflict_after_cancel() -> None:
-    client, _, _ = build_client()
-    client.post("/api/recordings/call-001/jobs")
-    client.post("/api/jobs/call-001/cancel")
+def test_report_exposes_audio_and_range_endpoint(tmp_path: Path) -> None:
+    audio_path = tmp_path / "call.ogg"
+    audio_path.write_bytes(OGG_BYTES)
+    client = build_client(FakeRecordingArchive(audio_path))
 
-    assert client.post("/api/jobs/call-001/requeue").status_code == 409
-    assert client.post("/api/jobs/call-001/cancel").status_code == 409
+    report = client.get(f"/api/calls/{CALL_ID}/report")
+    audio = client.get(
+        f"/api/calls/{CALL_ID}/audio",
+        headers={"Range": "bytes=0-3"},
+    )
+
+    assert report.json()["audio"] == {
+        "available": True,
+        "url": f"/api/calls/{quote(CALL_ID, safe='')}/audio",
+        "mime_type": "audio/ogg",
+    }
+    assert audio.status_code == 206
+    assert audio.headers["content-type"].startswith("audio/ogg")
+    assert audio.headers["accept-ranges"] == "bytes"
+    assert audio.content == OGG_BYTES[:4]
+
+
+def test_missing_report_and_invalid_filters_are_explicit() -> None:
+    client = build_client()
+
+    assert client.get("/api/calls/missing/report").status_code == 404
+    assert client.get("/api/calls/missing/audio").status_code == 404
+    assert (
+        client.get(
+            "/api/calls",
+            params={"date_from": "2026-08-22", "date_to": "2026-08-01"},
+        ).status_code
+        == 422
+    )
+    assert client.get("/api/calls", params={"satisfaction": "excellent"}).status_code == 422
+    assert client.get("/api/calls", params={"question_resolved": "maybe"}).status_code == 422
+    assert client.get("/api/calls", params={"sort": "sideways"}).status_code == 422
+    assert client.get("/api/calls", params={"page_size": 101}).status_code == 422
+
+
+def test_mutating_recording_and_job_routes_are_removed() -> None:
+    client = build_client()
+
+    assert client.post("/api/recordings", files={"file": ("x.wav", b"x")}).status_code == 404
+    assert client.post("/api/recordings/call/jobs").status_code == 404
+    assert client.post("/api/jobs/call/retry").status_code == 404
+    assert client.delete("/api/recordings/call/report").status_code == 404
+
+
+def test_sync_status_reports_never_before_first_run() -> None:
+    response = build_client().get("/api/sync/status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "never",
+        "processing": {"pending": 3, "running": 1, "done": 2, "failed": 1},
+        "storage": {
+            "total_bytes": 100,
+            "used_bytes": 10,
+            "free_bytes": 90,
+            "used_percent": 10,
+            "state": "ok",
+        },
+    }

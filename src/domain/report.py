@@ -43,6 +43,8 @@ class CallReport:
     summary: str
     key_points: tuple[str, ...]
     generated_at: datetime
+    caller_name: str | None = None
+    caller_name_confidence: float = 0.0
     client_speaker: str = "unknown"
     operator_speaker: str = "unknown"
     question_resolved: QuestionResolution = field(

@@ -53,6 +53,10 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
                           "file": "call-1.wav",
                           "client_speaker": "SPEAKER_01",
                           "operator_speaker": "SPEAKER_00",
+                          "caller_name": {
+                            "value": "Анна",
+                            "confidence": 0.92
+                          },
                           "question_resolved": {
                             "value": "yes",
                             "confidence": 0.86,
@@ -71,8 +75,9 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
                             "evidence": ["SER happy на клиентской реплике."]
                           },
                           "summary": "Клиента записали на приём.",
-                          "risks": [],
-                          "recommendations": []
+                          "key_points": ["лишнее поле"],
+                          "risks": ["лишнее поле"],
+                          "recommendations": ["лишнее поле"]
                         }
                         """,
                     }
@@ -149,6 +154,9 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
     assert "speaker_coverage=" in prompt
     assert "emotions=" in prompt
     assert "Аудит качества разметки" in prompt
+    assert '"key_points"' not in prompt
+    assert '"risks"' not in prompt
+    assert '"recommendations"' not in prompt
     assert captured["payload"]["max_tokens"] == 8192
     assert captured["payload"]["chat_template_kwargs"] == {"enable_thinking": False}
     assert captured["payload"].get("reasoning_effort") is None
@@ -156,5 +164,10 @@ async def test_qwen_report_prompt_contains_dialogue_and_disables_thinking() -> N
     assert report.satisfaction is Satisfaction.SATISFIED
     assert report.client_speaker == "SPEAKER_01"
     assert report.operator_speaker == "SPEAKER_00"
+    assert report.caller_name == "Анна"
+    assert report.caller_name_confidence == 0.92
     assert report.question_resolved.value == "yes"
     assert report.client_satisfaction.score_1_5 == 5
+    assert report.key_points == ()
+    assert report.risks == ()
+    assert report.recommendations == ()

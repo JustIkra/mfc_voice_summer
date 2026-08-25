@@ -6,7 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker/certs/mfcRootCA.crt /usr/local/share/ca-certificates/mfcRootCA.crt
+RUN update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python -m pip install --no-cache-dir --upgrade pip

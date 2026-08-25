@@ -30,6 +30,7 @@ class JobStatus(Enum):
     DONE = "done"
     FAILED = "failed"
     CANCELED = "canceled"
+    SKIPPED_EMPTY = "skipped_empty"
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,12 +98,38 @@ class CallProcessingJob:
             raise InvalidJobTransition(f"нельзя пометить ошибку из статуса {self.status.name}")
         return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
 
+    def fail_before_processing(self, kind: str, message: str) -> CallProcessingJob:
+        if self.status is not JobStatus.PENDING:
+            raise InvalidJobTransition(
+                f"предварительная ошибка возможна только из PENDING, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.FAILED, last_error=(kind, message))
+
+    def skip_empty(self) -> CallProcessingJob:
+        if self.status is not JobStatus.RUNNING:
+            raise InvalidJobTransition(
+                f"пропуск пустой записи возможен только из RUNNING, текущий {self.status.name}"
+            )
+        return replace(self, status=JobStatus.SKIPPED_EMPTY, last_error=None)
+
     def retry(self) -> CallProcessingJob:
         if self.status is not JobStatus.FAILED:
             raise InvalidJobTransition(
                 f"повтор возможен только из FAILED, текущий {self.status.name}"
             )
         return replace(self, status=JobStatus.PENDING, last_error=None)
+
+    def restart(self) -> CallProcessingJob:
+        if self.status is not JobStatus.FAILED:
+            raise InvalidJobTransition(
+                f"перезапуск возможен только из FAILED, текущий {self.status.name}"
+            )
+        return replace(
+            self,
+            status=JobStatus.PENDING,
+            completed_stages=frozenset(),
+            last_error=None,
+        )
 
     def cancel(self) -> CallProcessingJob:
         if self.status is not JobStatus.PENDING:
@@ -123,7 +150,12 @@ class CallProcessingJob:
             raise InvalidJobTransition(
                 f"recovery возможен только из RUNNING, текущий {self.status.name}"
             )
-        return replace(self, status=JobStatus.PENDING, last_error=None)
+        return replace(
+            self,
+            status=JobStatus.PENDING,
+            completed_stages=frozenset(),
+            last_error=None,
+        )
 
 
 __all__ = ["STAGE_ORDER", "CallProcessingJob", "JobStage", "JobStatus"]

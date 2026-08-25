@@ -36,6 +36,16 @@ def test_start_counts_attempts() -> None:
     assert job.attempts[JobStage.TRANSCRIBE] == 1
 
 
+def test_job_can_fail_before_processing_without_counting_stage_attempt() -> None:
+    job = CallProcessingJob.create("job-1", RecordingId("rec-1"), NOW)
+
+    failed = job.fail_before_processing("ARCHIVE_IO", "archive write failed")
+
+    assert failed.status is JobStatus.FAILED
+    assert failed.attempts == {}
+    assert failed.last_error == ("ARCHIVE_IO", "archive write failed")
+
+
 def test_cannot_start_out_of_order_stage() -> None:
     job = _job()
     with pytest.raises(InvalidJobTransition):
@@ -56,6 +66,28 @@ def test_recover_interrupted_running_job_returns_to_pending_stage() -> None:
     assert recovered.status is JobStatus.PENDING
     assert recovered.next_stage() is JobStage.TRANSCRIBE
     assert recovered.attempts[JobStage.TRANSCRIBE] == 1
+
+
+def test_recover_interrupted_job_restarts_from_transcribe() -> None:
+    job = _job().start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)
+    job = job.start_stage(JobStage.DIARIZE)
+
+    recovered = job.recover_interrupted()
+
+    assert recovered.status is JobStatus.PENDING
+    assert recovered.completed_stages == frozenset()
+    assert recovered.next_stage() is JobStage.TRANSCRIBE
+
+
+def test_failed_job_can_restart_from_transcribe() -> None:
+    job = _job().start_stage(JobStage.TRANSCRIBE).complete_stage(JobStage.TRANSCRIBE)
+    failed = job.start_stage(JobStage.DIARIZE).fail_stage(JobStage.DIARIZE, "TIMEOUT", "slow")
+
+    restarted = failed.restart()
+
+    assert restarted.status is JobStatus.PENDING
+    assert restarted.completed_stages == frozenset()
+    assert restarted.next_stage() is JobStage.TRANSCRIBE
 
 
 def test_fail_then_retry_keeps_completed_and_reruns_failed_stage() -> None:
@@ -102,3 +134,15 @@ def test_only_pending_job_can_be_canceled() -> None:
 def test_only_canceled_job_can_be_resumed() -> None:
     with pytest.raises(InvalidJobTransition):
         _job().resume()
+
+
+def test_running_job_can_finish_as_skipped_empty() -> None:
+    skipped = _job().start_stage(JobStage.TRANSCRIBE).skip_empty()
+
+    assert skipped.status is JobStatus.SKIPPED_EMPTY
+    assert skipped.next_stage() is JobStage.TRANSCRIBE
+
+
+def test_only_running_job_can_be_skipped_empty() -> None:
+    with pytest.raises(InvalidJobTransition):
+        _job().skip_empty()

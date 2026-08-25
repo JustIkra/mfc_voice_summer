@@ -6,6 +6,8 @@ import pytest
 
 from call_analytics.infra.adapters.in_memory import (
     InMemoryArtifactStore,
+    InMemoryCallRepository,
+    InMemoryFinalReportRepository,
     InMemoryJobRepository,
 )
 from call_analytics.infra.adapters.noop import (
@@ -16,7 +18,15 @@ from call_analytics.infra.adapters.noop import (
 )
 from call_analytics.infra.ports import TranscriberError
 from call_analytics.service import CallProcessingService
-from domain import CallRecording, ChannelLayout, JobStatus, RecordingId
+from call_analytics.service.ports import RecordingWorkspace, Transcriber
+from domain import (
+    AudioBlob,
+    CallRecording,
+    ChannelLayout,
+    JobStatus,
+    RecordingId,
+    Transcript,
+)
 from tests.call_analytics.service.conftest import (
     FailingTranscriber,
     FakeRecordingSource,
@@ -38,7 +48,37 @@ def _recording() -> CallRecording:
     )
 
 
-def _service(jobs, artifacts, transcriber=None):
+class EmptyTranscriber(Transcriber):
+    async def transcribe(self, recording_id: RecordingId, audio: AudioBlob) -> Transcript:
+        return Transcript(recording_id=recording_id, language="ru", segments=(), full_text="")
+
+
+class TrackingWorkspace(RecordingWorkspace):
+    def __init__(self) -> None:
+        self.cleared: list[RecordingId] = []
+
+    async def prepare(self, call_id, parts):
+        raise AssertionError("prepare is not used by pipeline tests")
+
+    async def load_audio(self, call_id):
+        raise AssertionError("load_audio is not used by pipeline tests")
+
+    async def clear(self, call_id: RecordingId) -> None:
+        self.cleared.append(call_id)
+
+    async def clear_stale(self, older_than, protected=()):
+        raise AssertionError("clear_stale is not used by pipeline tests")
+
+
+def _service(
+    jobs,
+    artifacts,
+    transcriber=None,
+    *,
+    calls=None,
+    final_reports=None,
+    workspace=None,
+):
     return CallProcessingService(
         source=FakeRecordingSource({RID.value: stereo_blob()}),
         transcriber=transcriber or NoopTranscriber(RID),
@@ -48,6 +88,9 @@ def _service(jobs, artifacts, transcriber=None):
         jobs=jobs,
         artifacts=artifacts,
         clock=lambda: NOW,
+        calls=calls,
+        final_reports=final_reports,
+        workspace=workspace,
     )
 
 
@@ -112,3 +155,48 @@ async def test_unexpected_programming_error_is_not_recorded_as_stage_failure() -
 
     with pytest.raises(AssertionError, match="bug in adapter"):
         await service.process(RID)
+
+
+async def test_empty_transcript_marks_call_skipped_and_clears_workspace() -> None:
+    jobs = InMemoryJobRepository()
+    artifacts = InMemoryArtifactStore()
+    calls = InMemoryCallRepository()
+    workspace = TrackingWorkspace()
+    service = _service(
+        jobs,
+        artifacts,
+        transcriber=EmptyTranscriber(),
+        calls=calls,
+        workspace=workspace,
+    )
+    job = await service.enqueue(_recording())
+    await calls.register(_recording(), job)
+
+    processed = await service.process(RID)
+
+    assert processed.status is JobStatus.SKIPPED_EMPTY
+    assert await calls.status(RID) is JobStatus.SKIPPED_EMPTY
+    assert workspace.cleared == [RID]
+
+
+async def test_success_finalizes_document_and_clears_workspace() -> None:
+    jobs = InMemoryJobRepository()
+    artifacts = InMemoryArtifactStore()
+    calls = InMemoryCallRepository()
+    final_reports = InMemoryFinalReportRepository(jobs)
+    workspace = TrackingWorkspace()
+    service = _service(
+        jobs,
+        artifacts,
+        calls=calls,
+        final_reports=final_reports,
+        workspace=workspace,
+    )
+    job = await service.enqueue(_recording())
+    await calls.register(_recording(), job)
+
+    processed = await service.process(RID)
+
+    assert processed.status is JobStatus.DONE
+    assert await final_reports.load_payload(RID) is not None
+    assert workspace.cleared == [RID]

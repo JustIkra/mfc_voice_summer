@@ -4,6 +4,7 @@ import pytest
 
 from call_analytics.infra.adapters.in_memory import (
     InMemoryArtifactStore,
+    InMemoryCallRepository,
     InMemoryJobRepository,
     InMemoryRecordingSource,
 )
@@ -14,8 +15,11 @@ from domain import (
     CallRecording,
     ChannelLayout,
     DiarizedTranscript,
+    DiscoveredCall,
     JobStatus,
+    QueueIdentity,
     RecordingId,
+    SourceRecordingIdentity,
     Transcript,
 )
 
@@ -69,3 +73,32 @@ async def test_recording_source_fetch_and_missing() -> None:
     with pytest.raises(CallRecordingSourceError) as exc:
         await source.fetch_audio(RecordingId("missing"))
     assert exc.value.kind is CallRecordingSourceError.Kind.NOT_FOUND
+
+
+async def test_call_repository_registers_and_skips_idempotently() -> None:
+    repository = InMemoryCallRepository()
+    recording = CallRecording(
+        id=RID,
+        started_at=datetime(2026, 1, 10, 12, 0, tzinfo=MSK),
+        duration=timedelta(minutes=5),
+        channel_layout=ChannelLayout.MONO,
+        queue=QueueIdentity(extension="6500", name="Call_center"),
+    )
+    job = CallProcessingJob.create(RID.value, RID, recording.started_at)
+
+    assert await repository.register(recording, job) is True
+    assert await repository.register(recording, job) is False
+    assert await repository.load_recording(RID) == recording
+
+    skipped = DiscoveredCall(
+        id=RecordingId("cdr:skipped"),
+        started_at=recording.started_at,
+        duration=timedelta(seconds=1),
+        queue=QueueIdentity(extension="6500", name="Call_center"),
+        caller=recording.caller,
+        operator=None,
+        source_recording=SourceRecordingIdentity(acct_id=None),
+    )
+    await repository.register_skipped(skipped, "empty", recording.started_at)
+
+    assert await repository.status(skipped.id) is JobStatus.SKIPPED_EMPTY

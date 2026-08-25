@@ -40,6 +40,19 @@ class LocalJobRepository(JobRepository):
         ]
         return [job for job in jobs if job.status is status]
 
+    async def list_stale_running(self, older_than: datetime) -> Sequence[CallProcessingJob]:
+        if not self._directory.is_dir():
+            return []
+        cutoff = older_than.timestamp()
+        jobs = []
+        for path in sorted(self._directory.glob("*.json")):
+            if path.stat().st_mtime >= cutoff:
+                continue
+            job = self._from_json(json.loads(path.read_text(encoding="utf-8")))
+            if job.status is JobStatus.RUNNING:
+                jobs.append(job)
+        return jobs
+
     def _path(self, job_id: str) -> Path:
         return self._directory / f"{job_id}.json"
 

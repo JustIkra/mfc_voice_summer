@@ -38,9 +38,7 @@ async def test_noop_diarizer_maps_channel_to_role() -> None:
         recording_id=RID,
         language="ru",
         segments=(
-            TranscriptSegment(
-                TimeSpan(timedelta(0), timedelta(seconds=1)), "оператор", channel=0
-            ),
+            TranscriptSegment(TimeSpan(timedelta(0), timedelta(seconds=1)), "оператор", channel=0),
             TranscriptSegment(
                 TimeSpan(timedelta(seconds=1), timedelta(seconds=2)), "клиент", channel=1
             ),
@@ -59,9 +57,7 @@ async def test_noop_diarizer_maps_channel_to_role() -> None:
 
 async def test_noop_emotion_is_neutral_per_segment() -> None:
     dt = DiarizedTranscript(recording_id=RID, segments=())
-    ea = await NoopEmotionRecognizer().recognize(
-        AudioBlob(b"x", "wav", ChannelLayout.MONO), dt
-    )
+    ea = await NoopEmotionRecognizer().recognize(AudioBlob(b"x", "wav", ChannelLayout.MONO), dt)
     assert isinstance(ea, EmotionAnalysis)
     assert ea.recording_id == RID
 

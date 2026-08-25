@@ -91,9 +91,7 @@ class VoiceModelTranscriber(_VoiceModelClient, Transcriber):
 
 
 class VoiceModelDiarizer(_VoiceModelClient, SpeakerDiarizer):
-    async def diarize(
-        self, audio: AudioBlob, transcript: Transcript
-    ) -> DiarizedTranscript:
+    async def diarize(self, audio: AudioBlob, transcript: Transcript) -> DiarizedTranscript:
         try:
             staged = await self._audio_stager.stage(transcript.recording_id, audio)
             payload = await self._post(
@@ -122,9 +120,7 @@ class VoiceModelDiarizer(_VoiceModelClient, SpeakerDiarizer):
 
 
 class VoiceModelEmotionRecognizer(_VoiceModelClient, EmotionRecognizer):
-    async def recognize(
-        self, audio: AudioBlob, diarized: DiarizedTranscript
-    ) -> EmotionAnalysis:
+    async def recognize(self, audio: AudioBlob, diarized: DiarizedTranscript) -> EmotionAnalysis:
         try:
             staged = await self._audio_stager.stage(diarized.recording_id, audio)
             payload = await self._post(

@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from call_analytics.service.dashboard import (
+    CallListItem,
+    CallPage,
+    CallPageRequest,
+    DashboardFilter,
+    DashboardSummary,
+    OperatorSummary,
+    SyncStatus,
+)
 from call_analytics.service.ports.application import (
     ArtifactStore,
     CallRecordingSource,
@@ -24,30 +33,77 @@ from call_analytics.service.ports.application import (
     Transcriber,
     TranscriberError,
 )
+from call_analytics.service.ports.archive import (
+    ArchivedRecording,
+    ArchivedRecordingFile,
+    ArchiveErrorKind,
+    ArchiveState,
+    RecordingArchive,
+    RecordingArchiveError,
+    RecordingStorageStatus,
+)
+from call_analytics.service.ports.persistence import (
+    CallRepository,
+    DashboardRepository,
+    FinalReportRepository,
+    SyncRunRepository,
+)
 from call_analytics.service.ports.pipeline import CallProcessingPipeline
+from call_analytics.service.ports.telephony import (
+    InvalidRecordingError,
+    PreparedAudio,
+    RecordingWorkspace,
+    TelephonyAccount,
+    TelephonyGateway,
+    TelephonyGatewayError,
+)
 
 __all__ = [
+    "ArchiveErrorKind",
+    "ArchiveState",
+    "ArchivedRecording",
+    "ArchivedRecordingFile",
     "ArtifactStore",
+    "CallListItem",
+    "CallPage",
+    "CallPageRequest",
     "CallProcessingPipeline",
     "CallRecordingSource",
     "CallRecordingSourceError",
+    "CallRepository",
+    "DashboardFilter",
+    "DashboardRepository",
+    "DashboardSummary",
     "DialogueAssemblerPort",
     "EmotionRecognizer",
     "EmotionRecognizerError",
+    "FinalReportRepository",
+    "InvalidRecordingError",
     "JobRepository",
     "ModelAudio",
     "ModelAudioStager",
+    "OperatorSummary",
     "Period",
+    "PreparedAudio",
     "ProcessingMessage",
     "ProcessingQueue",
     "ProcessingQueueError",
+    "RecordingArchive",
+    "RecordingArchiveError",
     "RecordingInbox",
+    "RecordingStorageStatus",
+    "RecordingWorkspace",
     "ReportGenerator",
     "ReportGeneratorError",
     "ReportRenderer",
     "ReportRendererError",
     "SpeakerDiarizer",
     "SpeakerDiarizerError",
+    "SyncRunRepository",
+    "SyncStatus",
+    "TelephonyAccount",
+    "TelephonyGateway",
+    "TelephonyGatewayError",
     "Transcriber",
     "TranscriberError",
 ]

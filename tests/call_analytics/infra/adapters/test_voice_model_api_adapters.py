@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import urllib.error
 from dataclasses import fields
 from datetime import timedelta
@@ -130,8 +131,9 @@ async def test_mounted_directory_audio_stager_writes_blob_and_returns_model_path
         AudioBlob(data=b"wav-bytes", codec="wav", layout=ChannelLayout.STEREO),
     )
 
-    assert (tmp_path / "call-1.wav").read_bytes() == b"wav-bytes"
-    assert staged.path == "/data/recordings/call-1.wav"
+    key = hashlib.sha256(RID.value.encode()).hexdigest()
+    assert (tmp_path / "jobs" / key / "model.wav").read_bytes() == b"wav-bytes"
+    assert staged.path == f"/data/recordings/jobs/{key}/model.wav"
 
 
 async def test_audio_blob_does_not_expose_infrastructure_source_path() -> None:

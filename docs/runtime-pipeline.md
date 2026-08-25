@@ -1,68 +1,58 @@
 # Runtime Pipeline
 
-## Purpose
+## Source and synchronization
 
-This document describes the production-oriented shape of the call analytics pipeline after moving temporary scripts into ports, services, and adapters.
+`grandstream-sync` работает непосредственно на `ranghigs`, где доступен `https://grandstream253.mfcl.mfclnr.ru/api`.
 
-## Process Boundaries
+Каждый запуск:
 
-The pipeline is not responsible for model lifecycle management. ML and LLM services are long-running processes:
+1. получает challenge и выполняет login с API version `1.0`;
+2. читает `listAccount`;
+3. постранично читает CDR за `[now-30 days, now]` в Europe/Moscow;
+4. локально оставляет только `QUEUE[6500]`;
+5. разрешает ответившего оператора через `dstanswer → listAccount.extension`;
+6. пропускает уже зарегистрированный `call_id`;
+7. получает filenames через `getRecordInfosByCall` и временно скачивает `recapi`;
+8. валидирует/нормализует запись и публикует job в RabbitMQ;
+9. завершает logout и очищает cookie/token из памяти.
 
-- `asr-api` exposes `/transcribe`;
-- `diarization-api` exposes `/diarize`;
-- `emotion-api` exposes `/emotion`;
-- Qwen/vLLM exposes `/v1/chat/completions`;
-- RabbitMQ stores recording-processing commands.
+`6501 / Call_Center_Reserve` не ingest-ится. Пустые, повреждённые и безречевые вызовы получают `skipped_empty` и не входят в аналитику.
 
-The application layer calls these services through ports. If a service is unavailable, the relevant port raises a contract error and the job is left retryable.
+## Processing
 
-## Queue Strategy
+Worker выполняет:
 
-RabbitMQ is the default queue backend because recording processing is a long-running command workflow. A worker must acknowledge a message only after the job reaches `DONE`; failed jobs are rejected with requeue enabled by default.
+```text
+TRANSCRIBE → DIARIZE → EMOTION → REPORT
+```
 
-Kafka is intentionally not implemented yet. It should be added as another adapter only if the system needs replayable event streams, audit logs, or high-throughput downstream analytics.
+Model services являются долгоживущими HTTP-процессами. Pipeline не управляет их lifecycle.
 
-## Application Composition
+Рабочие данные находятся только в `.staging/jobs/<sha256>/`. При success/failure/skip/cancel каталог удаляется. После crash interrupted job сбрасывает completed stages, очищает workspace и начинает с TRANSCRIBE.
 
-`call_analytics.bootstrap.build_application()` wires:
+## Persistence
 
-- `LocalDirectoryRecordingSource`;
-- `LocalJobRepository`;
-- `LocalArtifactStore`;
-- `RabbitMQProcessingQueue`;
-- `VoiceModelTranscriber`;
-- `VoiceModelDiarizer`;
-- `VoiceModelEmotionRecognizer`;
-- `QwenReportGenerator`;
-- `ReportLabReportRenderer`;
-- `CallProcessingService`;
-- `ProcessingWorker`.
+SQLite работает в WAL-режиме с foreign keys и busy timeout:
 
-Future FastAPI routes should depend on this composition root through lifespan/application state, not construct adapters inside route functions.
+- `calls` — source snapshot и job state;
+- `reports` — индексируемые поля и zlib-compressed canonical report payload;
+- `sync_runs` — lifecycle и безопасные счётчики синхронизации.
 
-## Report Contract
+Final report и `done` job status сохраняются одной транзакцией. Payload включает operator ID/extension/name, Caller ID/name, анализ и полную расшифровку. Звуковые пути и URL отсутствуют.
 
-The final report includes:
+## Dashboard
 
-- whether the issue was resolved;
-- client satisfaction;
-- emotional assessment;
-- evidence;
-- risks;
-- recommendations;
-- summary.
+FastAPI выполняет server-side aggregation, operator filters, text search и pagination. Только `calls.status='done'` участвует в пользовательских показателях.
 
-The Qwen prompt includes synchronized utterances with ASR confidence, diarization coverage, and SER emotion episodes. It does not disable thinking; final JSON is parsed only from the assistant `content`.
+Frontend получает summary, operators, calls и sync status через HTTP. Detail dialog загружает canonical payload; PDF строится в памяти. Публичного audio/upload/mutation API нет.
 
-## Artifacts
+## Failures
 
-Artifacts are persisted under `VOICE_ARTIFACTS_DIR`:
+- API `-45`: одна пауза 15 секунд и один повтор.
+- Истёкшая auth session: одна повторная challenge/login попытка.
+- Authentication/permission error: sync останавливается без бесконечных login attempts.
+- Retryable processing error: повтор до пяти попыток последующими sync runs.
+- Missing operator: terminal failed call, скрытый из аналитики.
+- Empty/corrupt/no-speech: terminal `skipped_empty`.
 
-- `recordings/*.recording.json`;
-- `transcripts/*.transcript.json`;
-- `diarization/*.diarization.json`;
-- `emotions/*.emotion.json`;
-- `reports/*.report.json`;
-- `reports/*.pdf`.
-
-This layout allows retries without recomputing earlier successful stages.
+Логи содержат только technical call ID, status и error kind.

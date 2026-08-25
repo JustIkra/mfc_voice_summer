@@ -10,7 +10,19 @@ from domain.diarization import DiarizedSegment, DiarizedTranscript, SpeakerRole
 from domain.emotion import EmotionAnalysis, EmotionLabel, SegmentEmotion
 from domain.errors import InvalidJobTransition
 from domain.job import STAGE_ORDER, CallProcessingJob, JobStage, JobStatus
-from domain.recording import AudioBlob, CallRecording, ChannelLayout, Period, RecordingId
+from domain.recording import (
+    AudioBlob,
+    CallerIdentity,
+    CallerNameSource,
+    CallRecording,
+    ChannelLayout,
+    DiscoveredCall,
+    OperatorIdentity,
+    Period,
+    QueueIdentity,
+    RecordingId,
+    SourceRecordingIdentity,
+)
 from domain.report import (
     CallReport,
     ClientSatisfaction,
@@ -18,6 +30,7 @@ from domain.report import (
     QuestionResolution,
     Satisfaction,
 )
+from domain.report_document import FinalReportDocument, build_report_payload
 from domain.transcript import TimeSpan, Transcript, TranscriptSegment, TranscriptWord
 
 __all__ = [
@@ -26,28 +39,36 @@ __all__ = [
     "CallProcessingJob",
     "CallRecording",
     "CallReport",
+    "CallerIdentity",
+    "CallerNameSource",
     "ChannelLayout",
     "ClientSatisfaction",
     "DialogueQuality",
     "DialogueUtterance",
     "DiarizedSegment",
     "DiarizedTranscript",
+    "DiscoveredCall",
     "EmotionAnalysis",
     "EmotionEpisode",
     "EmotionLabel",
     "EmotionalAssessment",
+    "FinalReportDocument",
     "InvalidJobTransition",
     "JobStage",
     "JobStatus",
+    "OperatorIdentity",
     "Period",
     "QuestionResolution",
+    "QueueIdentity",
     "RecordingId",
     "Satisfaction",
     "SegmentEmotion",
+    "SourceRecordingIdentity",
     "SpeakerRole",
     "SynchronizedDialogue",
     "TimeSpan",
     "Transcript",
     "TranscriptSegment",
     "TranscriptWord",
+    "build_report_payload",
 ]

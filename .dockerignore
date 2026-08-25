@@ -6,9 +6,11 @@
 __pycache__
 *.pyc
 .env
+.data
 .recordings
 .reports
 .staging
+.superpowers
 model-cache
 dist
 build

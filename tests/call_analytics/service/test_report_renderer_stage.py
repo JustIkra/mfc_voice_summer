@@ -15,6 +15,11 @@ from call_analytics.infra.adapters.noop import (
     NoopTranscriber,
 )
 from call_analytics.infra.adapters.reporting import ReportLabReportRenderer
+from call_analytics.infra.adapters.reporting.pdf import (
+    _client_emotion,
+    _payload_sections,
+    _resolution,
+)
 from call_analytics.infra.ports import ReportRenderer, ReportRendererError
 from call_analytics.service import CallProcessingService
 from domain import (
@@ -35,6 +40,28 @@ pytestmark = pytest.mark.asyncio
 MSK = timezone(timedelta(hours=3))
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=MSK)
 RID = RecordingId("report-pdf")
+
+
+async def test_payload_pdf_focuses_on_emotional_assessment() -> None:
+    sections = _payload_sections(
+        {
+            "summary": "Вопрос решён.",
+            "key_points": ["Срок назван"],
+            "risks": ["Риск"],
+            "recommendations": ["Рекомендация"],
+            "emotional_assessment": {
+                "overall": "Разговор прошёл спокойно.",
+                "client_emotions": ["happy"],
+                "operator_emotions": ["neutral"],
+            },
+        }
+    )
+
+    assert [name for name, _ in sections] == ["Краткое содержание", "Эмоциональный окрас"]
+    assert "Клиент: позитив" in str(sections[1][1])
+    assert "Оператор: спокойствие" in str(sections[1][1])
+    assert _client_emotion("dissatisfied") == "негативная"
+    assert _resolution("yes") == "да"
 
 
 class FakeReportRenderer(ReportRenderer):

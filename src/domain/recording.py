@@ -23,6 +23,51 @@ class ChannelLayout(Enum):
     STEREO = auto()
 
 
+class CallerNameSource(Enum):
+    CDR = "cdr"
+    ACCOUNT = "account"
+    TRANSCRIPT = "transcript"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class QueueIdentity:
+    extension: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class CallerIdentity:
+    id: str | None = None
+    name: str | None = None
+    name_source: CallerNameSource = CallerNameSource.UNKNOWN
+    name_confidence: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorIdentity:
+    id: int
+    extension: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class SourceRecordingIdentity:
+    acct_id: str | None
+    filenames: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveredCall:
+    id: RecordingId
+    started_at: datetime
+    duration: timedelta
+    queue: QueueIdentity
+    caller: CallerIdentity
+    operator: OperatorIdentity | None
+    source_recording: SourceRecordingIdentity
+
+
 @dataclass(frozen=True, slots=True)
 class AudioBlob:
     data: bytes
@@ -38,6 +83,22 @@ class CallRecording:
     channel_layout: ChannelLayout
     operator_id: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    queue: QueueIdentity | None = None
+    caller: CallerIdentity = field(default_factory=CallerIdentity)
+    operator: OperatorIdentity | None = None
+    source_recording: SourceRecordingIdentity | None = None
 
 
-__all__ = ["AudioBlob", "CallRecording", "ChannelLayout", "Period", "RecordingId"]
+__all__ = [
+    "AudioBlob",
+    "CallRecording",
+    "CallerIdentity",
+    "CallerNameSource",
+    "ChannelLayout",
+    "DiscoveredCall",
+    "OperatorIdentity",
+    "Period",
+    "QueueIdentity",
+    "RecordingId",
+    "SourceRecordingIdentity",
+]
