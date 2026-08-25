@@ -932,7 +932,7 @@ dialog::backdrop {
   border-left: 0.24rem solid var(--teal);
   border-radius: 0.8rem;
   padding: 1rem;
-  background: white;
+  background: var(--teal-soft);
 }
 
 .recording-player h3,
@@ -951,8 +951,85 @@ dialog::backdrop {
 }
 
 .recording-player audio {
-  width: 100%;
+  display: none;
+}
+
+.audio-player {
+  min-width: 0;
+}
+
+.audio-controls {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  padding: 0.7rem 0.8rem;
+  background: white;
+  box-shadow: 0 0.5rem 1.2rem rgba(16, 33, 43, 0.08);
+}
+
+.audio-toggle {
+  display: grid;
+  width: 2.5rem;
+  flex: 0 0 2.5rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: var(--navy);
+  cursor: pointer;
+}
+
+.audio-toggle span {
+  transform: translateX(0.06rem);
+}
+
+.audio-player.is-playing .audio-toggle {
+  background: var(--teal);
+}
+
+.audio-player.is-playing .audio-toggle span {
+  transform: none;
+}
+
+.audio-controls input[type="range"] {
+  min-height: 1rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
   accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.audio-progress {
+  min-width: 8rem;
+  flex: 1 1 16rem;
+}
+
+.audio-time {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.audio-volume {
+  display: inline-flex;
+  flex: 0 1 9rem;
+  grid-template-columns: none;
+  gap: 0.45rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.audio-volume input {
+  min-width: 4rem;
 }
 
 .recording-player.unavailable {

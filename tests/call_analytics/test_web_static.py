@@ -123,7 +123,14 @@ def test_audio_player_exists_only_in_report_renderer() -> None:
     ]
 
     assert "renderAudioPlayer" in script
-    assert '<audio controls preload="metadata"' in script
+    assert '<audio preload="metadata"' in script
+    assert "initializeAudioPlayer" in script
+    assert 'class="audio-controls"' in script
+    assert "data-audio-toggle" in script
+    assert "data-audio-progress" in script
+    assert "data-audio-volume" in script
+    assert "audio.currentTime" in script
+    assert "audio.volume" in script
     assert "Запись разговора" in script
     assert "Запись готовится" in script
     assert "<audio" not in html.lower()
@@ -131,9 +138,11 @@ def test_audio_player_exists_only_in_report_renderer() -> None:
     assert '.querySelector("audio")?.pause()' in script
     assert ".recording-player" in css
     assert ".recording-player audio" in css
+    assert ".audio-controls" in css
+    assert ".audio-toggle" in css
+    assert ".audio-progress" in css
     player_block = css[css.index(".recording-player {") : css.index(".recording-player h3,")]
-    assert "background: white" in player_block
-    assert "background: var(--teal-soft)" not in player_block
+    assert "background: var(--teal-soft)" in player_block
 
 
 def test_sync_tooltip_describes_recording_storage() -> None:

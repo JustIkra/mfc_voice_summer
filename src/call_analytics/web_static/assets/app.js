@@ -482,13 +482,67 @@ function renderReport(report) {
       </div>
     </section>
     <section class="report-section"><h3>Расшифровка</h3><div class="transcript">${transcript.map(renderTranscript).join("") || '<div class="empty">Расшифровка отсутствует.</div>'}</div></section>`;
+  initializeAudioPlayer();
 }
 
 function renderAudioPlayer(audio = {}) {
   if (!audio.available) {
     return '<section class="recording-player unavailable"><div><h3>Запись разговора</h3><p>Запись готовится. Она появится после архивирования.</p></div></section>';
   }
-  return `<section class="recording-player"><div><h3>Запись разговора</h3><p>Архивная запись звонка</p></div><audio controls preload="metadata" controlsList="nodownload" src="${escapeHtml(audio.url)}"></audio></section>`;
+  return `<section class="recording-player">
+    <div><h3>Запись разговора</h3><p>Архивная запись звонка</p></div>
+    <div class="audio-player" data-audio-player>
+      <audio preload="metadata" src="${escapeHtml(audio.url)}"></audio>
+      <div class="audio-controls">
+        <button class="audio-toggle" type="button" data-audio-toggle aria-label="Воспроизвести"><span data-audio-icon aria-hidden="true">▶</span></button>
+        <input class="audio-progress" type="range" min="0" max="0" step="0.1" value="0" data-audio-progress aria-label="Позиция записи" />
+        <span class="audio-time"><span data-audio-current>0:00</span><span aria-hidden="true">/</span><span data-audio-duration>0:00</span></span>
+        <label class="audio-volume"><span>Громкость</span><input type="range" min="0" max="1" step="0.05" value="1" data-audio-volume /></label>
+      </div>
+    </div>
+  </section>`;
+}
+
+function initializeAudioPlayer() {
+  const player = nodes.reportContent.querySelector("[data-audio-player]");
+  if (!player) return;
+  const audio = player.querySelector("audio");
+  const toggle = player.querySelector("[data-audio-toggle]");
+  const icon = player.querySelector("[data-audio-icon]");
+  const progress = player.querySelector("[data-audio-progress]");
+  const current = player.querySelector("[data-audio-current]");
+  const duration = player.querySelector("[data-audio-duration]");
+  const volume = player.querySelector("[data-audio-volume]");
+
+  const renderState = () => {
+    const length = Number.isFinite(audio.duration) ? audio.duration : 0;
+    progress.max = String(length);
+    progress.value = String(Math.min(audio.currentTime, length));
+    current.textContent = formatMediaTime(audio.currentTime);
+    duration.textContent = formatMediaTime(length);
+    const playing = !audio.paused && !audio.ended;
+    icon.textContent = playing ? "Ⅱ" : "▶";
+    toggle.setAttribute("aria-label", playing ? "Пауза" : "Воспроизвести");
+    player.classList.toggle("is-playing", playing);
+  };
+
+  toggle.addEventListener("click", async () => {
+    if (audio.paused || audio.ended) {
+      await audio.play().catch(() => showToast("Не удалось воспроизвести запись"));
+    } else {
+      audio.pause();
+    }
+  });
+  progress.addEventListener("input", () => {
+    audio.currentTime = Number(progress.value);
+  });
+  volume.addEventListener("input", () => {
+    audio.volume = Number(volume.value);
+  });
+  for (const eventName of ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "ended"]) {
+    audio.addEventListener(eventName, renderState);
+  }
+  renderState();
 }
 
 function renderTranscript(segment) {
@@ -563,6 +617,11 @@ function formatDuration(seconds) {
 
 function formatGiB(bytes) {
   return `${(Math.max(0, Number(bytes) || 0) / 1024 ** 3).toFixed(1)} ГБ`;
+}
+
+function formatMediaTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function formatDate(value) {
